@@ -1,0 +1,18 @@
+name: Automatic Wikimedia Youtube-ID source discovery
+on:
+  push:
+    branches: [experiment/automatic-commons-source-discovery]
+    paths: [scripts/probe-commons-id-link.mjs, .github/workflows/probe-commons-id-link.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Wikimedia ID-to-file search and license metadata checks
+        run: node scripts/probe-commons-id-link.mjs
