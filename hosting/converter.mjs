@@ -59,7 +59,7 @@ async function downloadAllowedFile(url,path,{fetchImpl=fetch}={}){
   const response=await fetchImpl(url,{redirect:'error',signal:controller.signal,headers:{Accept:'video/*, audio/*, application/octet-stream'}});
   if(!response.ok||!response.body)throw Error('The source file could not be retrieved.');
   const mime=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
-  if(!/^(video|audio)\//.test(mime)&&mime!=='application/octet-stream')throw Error('This link did not return a video or audio file.');
+  if(!/^(video|audio)\//.test(mime)&&mime!=='application/octet-stream'&&mime!=='application/ogg')throw Error('This link did not return a video or audio file.');
   const announced=Number(response.headers.get('content-length'));
   if(Number.isFinite(announced)&&announced>MAX_INPUT_BYTES)throw Error('Source file exceeds the 30 MB converter limit.');
   let received=0;
