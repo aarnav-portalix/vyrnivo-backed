@@ -28,7 +28,7 @@ const faqs=[
  ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
  ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
  ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.'],
- ['What is Vyrnivo Converter?','Our own online FFmpeg converter turns supported direct media file URLs into MP4 or MP3. It needs an accessible video or audio file, not a YouTube watch-page link.']
+ ['What is Vyrnivo Converter?','Our own online FFmpeg converter turns supported direct media files into MP4 or MP3. It also has a limited trial matching one YouTube film to a separately hosted, licensed 33-second excerpt—not the full upload.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
@@ -213,22 +213,23 @@ function App(){
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
-     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>Ready to save</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div></div>}
+     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
      {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
      <details className="converter-tool" id="vyrnivo-converter">
       <summary><span><Icon name="tune" size={18}/> Vyrnivo Converter <small>Our own engine · Beta</small></span><span className="converter-plus" aria-hidden="true">+</span></summary>
       <div className="converter-body">
-       <p>Convert a direct video or audio file link to MP4 or MP3 on our server. Works with approved public sources such as MDN, Wikimedia and W3C. YouTube watch links aren't direct files.</p>
+       <p>Convert approved video and audio files to MP4 or MP3. Our licensed-source trial also recognizes one specific YouTube film and converts its separately hosted 33-second excerpt. This does not download the YouTube upload or work for other YouTube videos.</p>
        <form onSubmit={startConversion}>
-        <label className="converter-label" htmlFor="converter-url">Direct media file URL</label>
+        <label className="converter-label" htmlFor="converter-url">Approved direct media URL or licensed YouTube trial link</label>
         <input id="converter-url" type="url" required value={convertUrl} onChange={e=>{setConvertUrl(e.target.value);setConvertError('')}} placeholder="https://…/video.webm" autoComplete="url" spellCheck={false}/>
         <div className="converter-options">
          <label htmlFor="converter-output">Output <select id="converter-output" value={convertFormat} onChange={e=>setConvertFormat(e.target.value)}><option>MP4</option><option>MP3</option></select></label>
          <button type="submit" className="cta" disabled={convertBusy||status?.enabled===false}>{convertBusy?'Starting…':'Convert file'}<Icon name="arrow" size={16}/></button>
         </div>
        </form>
-       <button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4');setConvertFormat('MP4');setConvertError('')}}>Try a free CC0 sample video</button>
+       <div className="converter-examples"><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://www.youtube.com/watch?v=aqz-KE-bpKQ');setConvertFormat('MP4');setConvertError('')}}>Try a licensed YouTube-link example (33-second excerpt)</button><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4');setConvertFormat('MP4');setConvertError('')}}>Try a free CC0 sample video</button></div>
+       {convertUrl.includes('aqz-KE-bpKQ')&&<div className="converter-license" role="note"><strong>Licensed alternate clip — not the full YouTube video</strong><span>Converts a 33-second extract of Big Buck Bunny hosted on Wikimedia Commons. Credit: © Blender Foundation / www.bigbuckbunny.org · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">CC BY 3.0</a> · <a href="https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_extract.ogv" target="_blank" rel="noopener noreferrer">Source</a></span></div>}
        {convertError&&<div className="message error" role="alert">{convertError}</div>}
        <p className="converter-hint">30 MB source limit · 2-minute output maximum · file expires 10 minutes after conversion · only convert media you have permission to use.</p>
       </div>

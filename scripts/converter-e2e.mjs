@@ -44,5 +44,11 @@ try{
  const magic=String.fromCharCode(...mp3.bytes.slice(0,3));
  assert.ok(magic==='ID3'||(mp3.bytes[0]===255&&(mp3.bytes[1]&224)===224),'Expected genuine MP3');
  console.log('OWN_CONVERTER_MP3_OK',JSON.stringify({bytes:mp3.bytes.length,content:'audio/mpeg',retention:10}));
+ const licensed=await convert('https://www.youtube.com/watch?v=aqz-KE-bpKQ','MP4');
+ assert.equal(String.fromCharCode(...licensed.bytes.slice(4,8)),'ftyp','Expected real MP4 conversion of licensed Wikimedia alternate');
+ assert.equal(licensed.job.sourceMetadata?.alternateVersion,true);
+ assert.equal(licensed.job.sourceMetadata?.durationSeconds,33);
+ console.log('LICENSED_YOUTUBE_LINK_EXCERPT_OK',JSON.stringify({bytes:licensed.bytes.length,excerptSeconds:licensed.job.sourceMetadata.durationSeconds,source:'Wikimedia Commons',fullYoutubeUpload:false}));
+
 }catch(e){console.error('OWN_CONVERTER_TEST_FAILED',e?.stack||String(e));console.error('SERVER_STDERR',stderr);process.exitCode=1}
 finally{server.kill('SIGTERM')}
