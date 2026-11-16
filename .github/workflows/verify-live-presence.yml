@@ -1,0 +1,54 @@
+name: Verify live Vyrnivo mobile dashboard and presence
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-live-presence.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify production JS, health, engine status, and real browser sessions
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {randomUUID} from 'node:crypto';
+          const base='https://vyrnivo-downloads.onrender.com';
+          const request=async(path,init={})=>fetch(base+path,{...init,signal:AbortSignal.timeout(25000)});
+          const html=await request('/');
+          assert.equal(html.status,200);
+          const js=await request('/app.js');
+          assert.equal(js.status,200);
+          const code=await js.text();
+          for(const term of ['Our Engine','Downloader status','active-browser-id','Explore & discover','Frequently asked questions'])assert.ok(code.includes(term),'Missing deployed UI marker: '+term);
+          const status=await request('/api/downloads/status');
+          assert.equal(status.status,200);
+          const engines=await status.json();
+          assert.equal(engines.enabled,true);
+          assert.equal(engines.freeFallbackEnabled,true);
+          const initial=await request('/api/presence/status');
+          assert.equal(initial.status,200);
+          const first=await initial.json();
+          assert.equal(first.approximate,true);
+          const id=randomUUID();
+          const opts={method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({id})};
+          const post=await request('/api/presence/heartbeat',opts);
+          assert.equal(post.status,200);
+          const count=await post.json();
+          assert.ok(Number.isInteger(count.online)&&count.online>=1);
+          const repeat=await request('/api/presence/heartbeat',opts);
+          assert.equal(repeat.status,200);
+          const again=await repeat.json();
+          assert.ok(Number.isInteger(again.online)&&again.online>=1);
+          const after=await request('/api/presence/status');
+          assert.equal(after.status,200);
+          console.log('LIVE_MOBILE_PRESENCE_VERIFIED',JSON.stringify({tabs:['Download','Our Engine','About'],estimatedActiveBrowsers:(await after.json()).online,heartbeatWindowSeconds:count.activeWindowSeconds,freeFallback:engines.freeFallbackEnabled}));
+          JS
