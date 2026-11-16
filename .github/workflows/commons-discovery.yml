@@ -1,0 +1,16 @@
+name: Wikimedia licensed media discovery feasibility test
+on:
+  push:
+    branches: [experiment/commons-youtube-id-discovery]
+    paths: [.github/workflows/commons-discovery.yml,scripts/commons-discovery.mjs]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node scripts/commons-discovery.mjs
