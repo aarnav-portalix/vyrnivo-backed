@@ -61,3 +61,32 @@ jobs:
           }
           await Promise.all(sources.map(probe));
           JS
+
+      - name: Check WebDownloader documented public API and real media bytes
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://save.brianrianrehan.com';
+          const url='https://www.youtube.com/watch?v=jNQXAC9IVRw';
+          try{
+            const info=await fetch(base+'/api/v1/info',{
+              method:'POST',headers:{'content-type':'application/json'},
+              body:JSON.stringify({url}),signal:AbortSignal.timeout(16000)
+            });
+            const infoRaw=await info.text();
+            console.log('WEBDOWNLOADER_INFO',info.status,infoRaw.slice(0,400));
+            if(!info.ok){console.log('WEBDOWNLOADER_RESULT: INFO_FAILED');process.exit(0)}
+            const res=await fetch(base+'/api/v1/download?wait=true&download=true',{
+              method:'POST',headers:{'content-type':'application/json'},
+              body:JSON.stringify({url,format:'video',quality:'best',outputFormat:'mp4'}),
+              signal:AbortSignal.timeout(100000),redirect:'manual'
+            });
+            console.log('WEBDOWNLOADER_DOWNLOAD',res.status,'content-type',res.headers.get('content-type'),'length',res.headers.get('content-length'));
+            const reader=res.body?.getReader();const sample=reader?await reader.read():null;
+            const bytes=sample?.value?.byteLength||0;
+            await reader?.cancel();
+            if(!res.ok||!/^(video\/|application\/octet-stream)/i.test(res.headers.get('content-type')||''))
+              console.log('WEBDOWNLOADER_ERROR',new TextDecoder().decode(sample?.value||new Uint8Array()).slice(0,320));
+            console.log('WEBDOWNLOADER_RESULT:',res.ok&&bytes>128&&/^(video\/|application\/octet-stream)/i.test(res.headers.get('content-type')||'')?'MEDIA_BYTES_CONFIRMED':'MEDIA_FAILED');
+          }catch(e){console.log('WEBDOWNLOADER_RESULT: REQUEST_FAILED',String(e?.message||e))}
+          JS
