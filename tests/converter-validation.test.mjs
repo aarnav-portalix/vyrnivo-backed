@@ -13,7 +13,7 @@ test('rejects YouTube watch pages, arbitrary hosts, redirects, private targets, 
  'https://127.0.0.1/private.mp4',
  'https://interactive-examples.mdn.mozilla.net.evil.org/video.mp4',
  'https://interactive-examples.mdn.mozilla.net/video.html',
- 'https://interactive-examples.mdn.mozilla.net:443/video.mp4',
+ 'https://interactive-examples.mdn.mozilla.net:444/video.mp4',
  'https://somewhere.example/clip.mp4'
  ]) assert.throws(()=>validateConversion({url:link,output:'MP4'}),{name:'Error'},link);
 });
