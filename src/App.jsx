@@ -268,12 +268,12 @@ function App(){
   </header>
   <main className="content" id="main-content">
    <div className="hero">
-    <p className="kicker">{page==='download'&&'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':'BEYOND THE DOWNLOAD'}</p>
+    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='engine'?<>Our own <em>engine.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
     <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':'Answers, discovery, and everything else — all in one place.'}</p>
    </div>
-   {page==='download'?
-    <section className="panel" aria-label="Video downloader">
+   {page==='download'&&
+     <section className="panel" aria-label="Video downloader">
      <form onSubmit={startDownload}>
       <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('')}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
        {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
