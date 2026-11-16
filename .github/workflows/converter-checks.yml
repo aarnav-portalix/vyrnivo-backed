@@ -1,0 +1,34 @@
+name: Vyrnivo Own Converter Checks
+on:
+  push:
+    branches: [main, feat/vyrnivo-first-party-converter]
+    paths:
+      - hosting/converter.mjs
+      - hosting/server.mjs
+      - src/App.jsx
+      - src/style.css
+      - tests/converter-validation.test.mjs
+      - scripts/converter-e2e.mjs
+      - .github/workflows/converter-checks.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  converter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test tests/converter-validation.test.mjs
+      - name: Install FFmpeg on GitHub's temporary test runner
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: ffmpeg -version
+      - name: Real end-to-end MP4 and MP3 conversion test
+        timeout-minutes: 4
+        run: node scripts/converter-e2e.mjs

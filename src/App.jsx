@@ -27,7 +27,8 @@ const faqs=[
  ['Does YouTube downloading always work?','No. YouTube may block downloads from this server, even for public videos. If you own the video, you can download it from YouTube Studio.'],
  ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
  ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
- ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.']
+ ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.'],
+ ['What is Vyrnivo Converter?','Our own online FFmpeg converter turns supported direct media file URLs into MP4 or MP3. It needs an accessible video or audio file, not a YouTube watch-page link.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
@@ -71,6 +72,10 @@ function App(){
  const [job,setJob]=useState(()=>saved('dw3lastJob',null));
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
+ const [convertUrl,setConvertUrl]=useState('');
+ const [convertFormat,setConvertFormat]=useState('MP4');
+ const [convertBusy,setConvertBusy]=useState(false);
+ const [convertError,setConvertError]=useState('');
  const [query,setQuery]=useState('');
  const [searching,setSearching]=useState(false);
  const [results,setResults]=useState([]);
@@ -96,7 +101,7 @@ function App(){
   const poll=async()=>{
    if(requestInFlight||!alive)return;requestInFlight=true;
    try{
-    const r=await fetch('/api/downloads/'+job.id);
+    const r=await fetch((job.engine==='converter'?'/api/converter/':'/api/downloads/')+job.id);
     const data=await r.json();
     if(alive){if(r.ok){setJob(data);if(data.state==='failed')refreshStatus()}else setJob(p=>({...p,state:'failed',error:data.error||'Download no longer available.'}))}
    }catch{if(alive)setFormError('Connection interrupted. You can try again.')}
@@ -104,7 +109,7 @@ function App(){
   };
   poll();const interval=setInterval(poll,2400);
   return()=>{alive=false;clearInterval(interval)}
- },[job?.id,job?.state]);
+ },[job?.id,job?.state,job?.engine]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
@@ -132,6 +137,19 @@ function App(){
    if(data.state==='ready')showToast('Your file is ready.')
   }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
   finally{setBusy(false)}
+ }
+ async function startConversion(e){
+  e?.preventDefault?.();
+  if(convertBusy)return;
+  if(status?.enabled===false){setConvertError('The converter is temporarily offline.');return}
+  setConvertError('');setConvertBusy(true);setJob(null);
+  try{
+   const response=await fetch('/api/converter',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:convertUrl.trim(),output:convertFormat})});
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Could not start conversion.');
+   setJob(data);
+  }catch(error){setConvertError(String(error.message||'Conversion failed.'))}
+  finally{setConvertBusy(false)}
  }
  async function copyLink(){
   try{await navigator.clipboard.writeText(location.origin+job.downloadUrl);showToast('Link copied!')}
@@ -194,10 +212,27 @@ function App(){
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
-     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>Preparing your file</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
+     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>Ready to save</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div></div>}
      {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
+     <details className="converter-tool" id="vyrnivo-converter">
+      <summary><span><Icon name="tune" size={18}/> Vyrnivo Converter <small>Our own engine · Beta</small></span><span className="converter-plus" aria-hidden="true">+</span></summary>
+      <div className="converter-body">
+       <p>Convert a direct video or audio file link to MP4 or MP3 on our server. Works with approved public sources such as MDN, Wikimedia and W3C. YouTube watch links aren't direct files.</p>
+       <form onSubmit={startConversion}>
+        <label className="converter-label" htmlFor="converter-url">Direct media file URL</label>
+        <input id="converter-url" type="url" required value={convertUrl} onChange={e=>{setConvertUrl(e.target.value);setConvertError('')}} placeholder="https://…/video.webm" autoComplete="url" spellCheck={false}/>
+        <div className="converter-options">
+         <label htmlFor="converter-output">Output <select id="converter-output" value={convertFormat} onChange={e=>setConvertFormat(e.target.value)}><option>MP4</option><option>MP3</option></select></label>
+         <button type="submit" className="cta" disabled={convertBusy||status?.enabled===false}>{convertBusy?'Starting…':'Convert file'}<Icon name="arrow" size={16}/></button>
+        </div>
+       </form>
+       <button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4');setConvertFormat('MP4');setConvertError('')}}>Try a free CC0 sample video</button>
+       {convertError&&<div className="message error" role="alert">{convertError}</div>}
+       <p className="converter-hint">30 MB source limit · 2-minute output maximum · file expires 10 minutes after conversion · only convert media you have permission to use.</p>
+      </div>
+     </details>
     </section>
     : <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
      <form className="search-panel" onSubmit={search}>

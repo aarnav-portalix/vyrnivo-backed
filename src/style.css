@@ -238,3 +238,25 @@ svg{flex-shrink:0}
  .tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn,.faq-plus{transition:none!important}
  .tab::after,.format-tab::after,.options-btn::after,.cta::after,.outline-btn::after,.mini-primary::after,.paste-btn::after,.icon-action::after,.round-btn::after{display:none}
 }
+
+/* The first-party converter is an optional, unobtrusive advanced feature. */
+.converter-tool{margin-top:22px;border:1px solid #c9adff3d;border-radius:17px;background:linear-gradient(128deg,#ffffff10,#ffffff05);overflow:hidden;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.converter-tool>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:15px 17px;font-size:13px;font-weight:750;color:#f4e7ff}
+.converter-tool>summary::-webkit-details-marker{display:none}
+.converter-tool>summary>span:first-child{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.converter-tool>summary small{font-size:10px;color:#b99bd9;font-weight:700}
+.converter-plus{font-size:21px;line-height:1;transition:transform .2s}
+.converter-tool[open] .converter-plus{transform:rotate(45deg)}
+.converter-body{border-top:1px solid #ffffff18;padding:18px}
+.converter-body>p{font-size:12px;color:#b9adc8;line-height:1.7;margin:0 0 14px}
+.converter-label{display:block;font-size:11px;font-weight:700;color:#d7c4eb;margin-bottom:8px}
+.converter-body input{display:block;width:100%;min-height:48px;padding:12px 14px;border-radius:12px;background:#ffffff0b;border:1px solid #ffffff32;color:#fff;outline:0;font-size:13px;min-width:0}
+.converter-body input:focus{border-color:#c9a5ff}
+.converter-body input::placeholder{color:#92849f}
+.converter-options{display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,1fr);gap:12px;margin-top:12px}
+.converter-options label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#cdbedf;font-weight:700}
+.converter-options select{min-height:44px;border:1px solid #ffffff35;border-radius:11px;background:#2c2340;color:#fff;padding:9px 11px}
+.converter-options .cta{align-self:end;min-height:44px}
+.converter-sample{display:inline-flex;border:0;background:none;color:#d4aaff;font-size:12px;text-decoration:underline;margin:14px 0 0;padding:4px 0}
+.converter-body .converter-hint{font-size:10px;color:#9a8aa9;margin:12px 0 0}
+@media(max-width:520px){.converter-body{padding:14px}.converter-tool>summary{padding:14px 13px}.converter-options{grid-template-columns:1fr}.converter-tool>summary small{font-size:9px}}
