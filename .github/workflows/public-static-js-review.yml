@@ -1,0 +1,35 @@
+name: Read public downloadable page scripts
+on:
+  push:
+    branches: [experiment/test-free-cloud-youtube-access]
+    paths: [.github/workflows/public-static-js-review.yml]
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Inspect public JS, do not use converter APIs
+        run: |
+          node --input-type=module <<'JS'
+          const assets=[
+          ['VD6S main','https://vd6s.net/theme/vd6snet/js/main.js?v=3.0.63'],
+          ['VD6S theme','https://vd6s.net/theme/vd6snet/js/theme.js?v=3.0.63'],
+          ['YTMP4 third-party script','https://track.savetube.vip/js/script.js']
+          ];
+          for(const [label,url] of assets){
+            try{
+              const r=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'user-agent':'Mozilla/5.0'}});
+              const src=(await r.text()).slice(0,450000);
+              // Only high-level architecture keywords; do not leak proprietary code or credentials.
+              const terms=['yt-dlp','cobalt','piped','invidious','download','convert','api/','XMLHttpRequest','axios','fetch(','turnstile','cloudflare','WebSocket','token','worker','iframe'];
+              const counts=Object.fromEntries(terms.map(x=>[x,(src.match(new RegExp(x.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&'),'gi'))||[]).length]).filter(x=>x[1]>0));
+              const hostnames=[...new Set([...src.matchAll(/https:\/\/([a-z\d.-]{5,80})/ig)].map(x=>x[1].toLowerCase()))].slice(0,15);
+              console.log('PUBLIC_SCRIPT_REVIEW',JSON.stringify({label,status:r.status,bytes:src.length,counts,referencedHosts:hostnames}));
+            }catch(e){console.log('PUBLIC_SCRIPT_REVIEW',JSON.stringify({label,error:String(e?.message||e).slice(0,160)}))}
+          }
+          JS
