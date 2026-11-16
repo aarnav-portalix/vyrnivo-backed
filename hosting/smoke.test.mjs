@@ -23,6 +23,13 @@ test('single-host website and source-only downloads API work without revealing b
     let r=await fetch(base+'/');
     assert.equal(r.status,200);
     assert.match(await r.text(),/html/i);
+    // Legal policies and Discover are bundled into the deployed public app.
+    r=await fetch(base+'/app.js');
+    assert.equal(r.status,200);
+    const frontend=await r.text();
+    for(const phrase of ['Our Engine','Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover']){
+      assert.ok(frontend.includes(phrase),'Missing production UI feature: '+phrase);
+    }
     r=await fetch(base+'/api/downloads/status');
     assert.equal(r.status,200);
     const status=await r.json();
