@@ -7,6 +7,14 @@ test('container choices prefer compatible streams and preserve audio-only behavi
  const video=argumentsFor({...input,mode:'Video only'},'/tmp/job');assert(video[video.indexOf('-f')+1].includes('bestvideo[ext=mp4][height<=1080]/bestvideo[height<=1080]'));
  const audio=argumentsFor({...input,mode:'Audio only',container:'MP3'},'/tmp/job');assert.equal(audio[audio.indexOf('-f')+1],'bestaudio/best');assert(audio.includes('--audio-format'));assert(audio.includes('mp3'));
 });
+test('YouTube can skip a blocked webpage without changing Instagram extraction',()=>{
+ const yt=argumentsFor(input,'/tmp/youtube-test');
+ const i=yt.indexOf('--extractor-args');
+ assert(i>=0);
+ assert.equal(yt[i+1],'youtube:player_skip=webpage,configs;player_client=tv');
+ const ig=argumentsFor({...input,url:'https://www.instagram.com/reel/Abcdef1234/'},'/tmp/instagram-test');
+ assert.equal(ig.includes('--extractor-args'),false);
+});
 test('unknown Instagram Reel duration is allowed but known long videos remain limited',()=>{
  const args=argumentsFor({...input,url:'https://www.instagram.com/reel/ABCdef1234/'},'/tmp/reel');
  assert.equal(args[args.indexOf('--match-filter')+1],'duration <=? 1800');
