@@ -22,6 +22,13 @@ function Icon({name,size=19,...props}){return <svg viewBox="0 0 24 24" width={si
 function saved(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
 function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
 const pages=['download','youtube','instagram'];
+const faqs=[
+ ['How do I download a video?','Paste a public video link, choose the format you want, and press Download. A file link appears if the source allows the download.'],
+ ['Does YouTube downloading always work?','No. YouTube may block downloads from this server, even for public videos. If you own the video, you can download it from YouTube Studio.'],
+ ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
+ ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
+ ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.']
+];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
  const m=String(message||'');
@@ -155,7 +162,7 @@ function App(){
  return <div className="app-shell">
   <div className="ambient" aria-hidden="true"><span/><span/></div>
   <header className="topbar">
-   <a className="logo" href="#download" onClick={e=>{e.preventDefault();nav('download')}}><span className="logo-icon"><Icon name="download" size={20}/></span>vyrnivo<span className="logo-dot">.</span></a>
+   <a className="logo" href="#download" onClick={e=>{e.preventDefault();nav('download')}}><span className="logo-icon"><img src="/favicon.svg" width="39" height="39" alt=""/></span>vyrnivo<span className="logo-dot">.</span></a>
    <nav aria-label="Main navigation" className="tabs">
     {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='youtube'?'YouTube':'Instagram'}</span></button>)}
    </nav>
@@ -208,6 +215,10 @@ function App(){
       </article>)}
      </div>}
     </section>}
+   {page==='download'&&<section className="faq" id="faq" aria-labelledby="faq-title">
+    <div className="faq-head"><p className="faq-eyebrow">Need a hand?</p><h2 id="faq-title">Frequently asked questions</h2></div>
+    <div className="faq-items">{faqs.map(([question,answer])=><details key={question} className="faq-item"><summary><span>{question}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
+   </section>}
   </main>
   <footer className="footer"><span>vyrnivo © 2026</span><span>Only save content you have permission to download.</span></footer>
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}

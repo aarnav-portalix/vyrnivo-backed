@@ -165,3 +165,76 @@ svg{flex-shrink:0}
 @media(min-width:521px) and (max-width:780px){.results{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(hover:none){.tab:hover,.media-card:hover,.cta:hover:not(:disabled){transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Vyrnivo signature: folded-V logo and interactive, layered glass controls. */
+.logo-icon{display:grid;place-items:center;width:43px;height:43px;background:none;border:0;box-shadow:0 7px 20px #8756cb35;border-radius:14px;overflow:hidden}
+.logo-icon img{display:block;width:43px;height:43px;object-fit:contain}
+.logo:hover .logo-icon{filter:drop-shadow(0 0 10px #ba8ee06b)}
+.tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn{
+ position:relative;isolation:isolate;overflow:hidden;
+ backdrop-filter:blur(18px) saturate(155%);
+ -webkit-backdrop-filter:blur(18px) saturate(155%);
+ border-top-color:#fff8;
+ box-shadow:inset 0 1px 1px #ffffff65,inset 0 -1px 1px #4e3b684d,0 5px 20px #05030b30;
+ transition:transform .23s cubic-bezier(.2,.7,.2,1),background .23s ease,box-shadow .25s ease,border-color .25s ease,filter .25s ease;
+}
+.tab::before,.format-tab::before,.options-btn::before,.cta::before,.outline-btn::before,.mini-primary::before,.paste-btn::before,.icon-action::before,.round-btn::before{
+ content:"";pointer-events:none;position:absolute;inset:0 0 auto;height:52%;border-radius:inherit;
+ background:linear-gradient(180deg,#ffffff43,#ffffff0c 40%,transparent);
+ opacity:.6;transition:opacity .25s ease;
+}
+.tab::after,.format-tab::after,.options-btn::after,.cta::after,.outline-btn::after,.mini-primary::after,.paste-btn::after,.icon-action::after,.round-btn::after{
+ content:"";pointer-events:none;position:absolute;width:62%;height:140%;top:-20%;left:-95%;
+ background:linear-gradient(100deg,transparent,#ffffff29 48%,transparent);
+ transform:skewX(-18deg);transition:left .5s cubic-bezier(.2,.8,.2,1);
+}
+@media(hover:hover) {
+ .tab:hover::after,.format-tab:hover::after,.options-btn:hover::after,.cta:hover::after,.outline-btn:hover::after,.mini-primary:hover::after,.paste-btn:hover::after,.icon-action:hover::after,.round-btn:hover::after{left:125%}
+ .cta:hover:not(:disabled),.mini-primary:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.08)}
+}
+.cta,.mini-primary{
+ background:linear-gradient(135deg,#e0c9ffb5 0%,#b39cf1a6 43%,#907ce88c 73%,#d3b8ff99 100%);
+ color:#1c0d37;border:1px solid #f7eaffb5;
+ box-shadow:inset 0 2px 2px #ffffffbf,inset 0 -2px 5px #553a9c4f,0 9px 30px #7d4bc250;
+ text-shadow:0 1px #ffffff20;
+}
+.cta:hover:not(:disabled),.mini-primary:hover:not(:disabled){
+ background:linear-gradient(135deg,#ead7ffcb,#c0aaffbe 45%,#9b85edb5 78%,#e3c8ffc2);
+ box-shadow:inset 0 2px 2px #ffffffd0,inset 0 -2px 5px #553a9c55,0 12px 34px #9662e35c;
+}
+.outline-btn,.options-btn,.paste-btn,.icon-action,.round-btn{
+ background:linear-gradient(135deg,#ffffff2a,#b59ad01b 45%,#ffffff09);
+ border:1px solid #f3deff4e;color:#f1e5ff;
+}
+.tab.active,.format-tab.active{
+ background:linear-gradient(140deg,#c9acf58c,#9b80d46c 47%,#ffffff2a);
+ border:1px solid #eadaff96;color:#fff;
+ box-shadow:inset 0 2px 1px #ffffff93,inset 0 -1px 3px #44317074,0 6px 22px #7d4bb84d;
+}
+.tab:not(.active),.format-tab:not(.active){background:linear-gradient(130deg,#ffffff11,#ffffff06);border:1px solid #fff2}
+.format-tabs{background:#bca5e80e;border-color:#dcc1ff36}
+.faq{margin:58px 0 10px;padding:0 1px}
+.faq-head{margin-bottom:20px}
+.faq-eyebrow{font-size:10px;color:#bb9bec;font-weight:800;letter-spacing:.17em;text-transform:uppercase;margin:0 0 8px}
+.faq-head h2{font-family:Manrope,system-ui,sans-serif;font-size:clamp(21px,3vw,27px);font-weight:750;letter-spacing:-.035em;margin:0}
+.faq-items{display:grid;gap:10px}
+.faq-item{border:1px solid #ffffff2a;border-top-color:#ffffff4b;border-radius:15px;background:linear-gradient(128deg,#ffffff10,#ffffff05);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:border-color .2s,background .2s}
+.faq-item[open]{border-color:#c7a3f66b;background:linear-gradient(128deg,#bba1ff16,#ffffff07)}
+.faq-item summary{list-style:none;cursor:pointer;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;font-size:13px;font-weight:700;color:#ece3f9}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary:focus-visible{outline:2px solid #dfbeff;outline-offset:3px;border-radius:12px}
+.faq-plus{display:grid;place-items:center;flex-shrink:0;height:27px;width:27px;border:1px solid #d7baff55;border-radius:10px;background:linear-gradient(145deg,#ffffff26,#ffffff05);font-size:21px;line-height:1;transition:transform .2s}
+.faq-item[open] .faq-plus{transform:rotate(45deg)}
+.faq-item p{font-size:12.5px;line-height:1.75;color:#b8a9ca;margin:0;padding:0 18px 20px}
+@media(max-width:520px){
+ .faq{margin:39px 0 15px}
+ .faq-head h2{font-size:22px}
+ .faq-item summary{font-size:12.5px;padding:14px 15px}
+ .faq-item p{padding:0 15px 17px}
+ .tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn{backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%)}
+}
+@media(prefers-reduced-motion:reduce){
+ .tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn,.faq-plus{transition:none!important}
+ .tab::after,.format-tab::after,.options-btn::after,.cta::after,.outline-btn::after,.mini-primary::after,.paste-btn::after,.icon-action::after,.round-btn::after{display:none}
+}
