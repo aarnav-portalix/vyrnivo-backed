@@ -1,0 +1,33 @@
+name: Official YouTube API anonymous access probe
+on:
+  push:
+    branches:
+      - experiment/test-free-cloud-youtube-access
+    paths:
+      - .github/workflows/official-youtube-api-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check whether official YouTube Data API offers anonymous downloadable MP4
+        run: |
+          node --input-type=module <<'JS'
+          const u=new URL('https://www.googleapis.com/youtube/v3/videos');
+          u.searchParams.set('part','snippet,contentDetails');
+          u.searchParams.set('id','jNQXAC9IVRw');
+          const r=await fetch(u,{signal:AbortSignal.timeout(15000)});
+          const contentType=r.headers.get('content-type')||'unknown';
+          let payload='';
+          try{payload=(await r.text()).slice(0,600)}catch{}
+          let detail='';try{const d=JSON.parse(payload);detail=d.error?.message||''}catch{}
+          console.log('OFFICIAL_PROVIDER_PROBE',JSON.stringify({status:r.status,contentType,error:detail,returnsVideoBytes:contentType.startsWith('video/')}));
+          if(contentType.startsWith('video/'))throw Error('Unexpected audiovisual media endpoint');
+          JS
