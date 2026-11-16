@@ -1,0 +1,27 @@
+name: Independent self-hosted Cobalt CC video probe
+on:
+  push:
+    branches: [experiment/selfhost-cobalt-youtube-permitted]
+    paths:
+      - .github/workflows/selfhost-cobalt-probe.yml
+      - scripts/selfhost-cobalt-probe.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Launch isolated Cobalt API container
+        run: |
+          docker pull ghcr.io/imputnet/cobalt:11
+          docker run -d --name cobalt-test --rm -p 127.0.0.1:9000:9000 -e API_URL=http://127.0.0.1:9000/ -e API_PORT=9000 ghcr.io/imputnet/cobalt:11
+      - name: Test Creative Commons YouTube media retrieval and file bytes
+        run: node scripts/selfhost-cobalt-probe.mjs
+      - name: Read non-sensitive container diagnostics
+        if: always()
+        run: docker logs --tail 40 cobalt-test 2>&1 | sed -E 's@https?://[^ ]+@[url]@g' || true
