@@ -18,3 +18,16 @@ test('rejects YouTube watch pages, arbitrary hosts, redirects, private targets, 
  ]) assert.throws(()=>validateConversion({url:link,output:'MP4'}),{name:'Error'},link);
 });
 test('rejects invalid formats',()=>assert.throws(()=>validateConversion({url:sample,output:'EXE'})));
+
+test('verified CC BY YouTube film resolves only to an attributed excerpt, not YouTube-hosted bytes',()=>{
+ const sample=validateConversion({url:'https://www.youtube.com/watch?v=aqz-KE-bpKQ',output:'MP4'});
+ assert.equal(sample.url,'https://upload.wikimedia.org/wikipedia/commons/3/3b/Big_Buck_Bunny_extract.ogv');
+ assert.equal(sample.extension,'ogv');
+ assert.equal(sample.sourceMetadata?.alternateVersion,true);
+ assert.equal(sample.sourceMetadata?.durationSeconds,33);
+ assert.match(sample.sourceMetadata?.description,/not a download of the full YouTube upload/i);
+ assert.equal(sample.sourceMetadata?.licenseUrl,'https://creativecommons.org/licenses/by/3.0/');
+});
+test('unapproved YouTube uploads never silently reuse unrelated video files',()=>{
+ assert.throws(()=>validateConversion({url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',output:'MP4'}),/No approved, separately hosted copy/);
+});
