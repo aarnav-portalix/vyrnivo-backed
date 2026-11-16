@@ -3,11 +3,11 @@ import {existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 const ext=resolve(process.argv[2]||'./dist');
 const chrome=process.env.CHROME_BINARY||'/usr/bin/google-chrome';
-const report={engine:'YT Stream Downloader Chrome extension',platform:'GitHub Ubuntu Chrome',extensionBuild:existsSync(ext),videoId:'aqz-KE-bpKQ',verifiedMedia:false};
+const report={engine:'YT Stream Downloader Chrome extension',platform:'GitHub Ubuntu Chrome',extensionBuild:existsSync(ext),headed:process.env.VYR_HEADED==='1',videoId:'aqz-KE-bpKQ',verifiedMedia:false};
 if(!report.extensionBuild){console.log('EXTENSION_SHOWDOWN',JSON.stringify({...report,error:'build folder missing'}));process.exit(0)}
 let browser;
 try{
- browser=await puppeteer.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-extensions-except='+ext,'--load-extension='+ext]});
+ browser=await puppeteer.launch({executablePath:chrome,headless:process.env.VYR_HEADED!=='1',args:['--no-sandbox','--disable-dev-shm-usage','--disable-extensions-except='+ext,'--load-extension='+ext]});
  report.extensionBackgroundCount=browser.targets().filter(t=>t.url().startsWith('chrome-extension://')).length;
  const page=await browser.newPage();
  const resp=await page.goto('https://www.youtube.com/watch?v=aqz-KE-bpKQ',{waitUntil:'domcontentloaded',timeout:35000}).catch(e=>null);
