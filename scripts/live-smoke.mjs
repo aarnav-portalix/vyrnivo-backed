@@ -40,7 +40,7 @@ const posted=await call('/api/files/upload',{
 const job=await json(posted);
 assert.equal(job.state,'ready');
 assert.equal(job.bytes,payload.length);
-assert.match(job.url,new RegExp('^/api/downloads/[0-9a-f-]{36}/file
+assert.ok(/^\/api\/downloads\/[0-9a-f-]{36}\/file$/.test(job.url),'Expected a temporary file URL');
 const fetched=await call(job.url);
 assert.equal(fetched.status,200);
 const received=Buffer.from(await fetched.arrayBuffer());
