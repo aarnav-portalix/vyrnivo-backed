@@ -23,6 +23,7 @@ test('presence counts unique active browsers, not repeat heartbeats',async()=>{
  now+=25000;
  x=await request(p,'/api/presence/heartbeat',a);
  assert.equal(x.data.online,1);
+ now+=25001;
  x=await request(p,'/api/presence/heartbeat',b);
  assert.equal(x.data.online,2);
  now+=50001;
