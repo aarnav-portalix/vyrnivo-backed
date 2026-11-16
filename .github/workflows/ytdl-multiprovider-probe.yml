@@ -1,0 +1,26 @@
+name: 2026 Multi-provider YouTube library CC probe
+on:
+  push:
+    branches: [experiment/youtube-engine-showdown-2026]
+    paths:
+      - scripts/ytdl-multiprovider-probe.mjs
+      - .github/workflows/ytdl-multiprovider-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  multiprovider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Run a bounded authorized CC video sample using documented library
+        run: |
+          mkdir -p /tmp/mp-yt
+          cd /tmp/mp-yt
+          npm init -y >/dev/null
+          npm install @hiudyy/ytdl@0.2.6 >/dev/null
+          cp "$GITHUB_WORKSPACE/scripts/ytdl-multiprovider-probe.mjs" ./probe.mjs
+          timeout 85s node probe.mjs
