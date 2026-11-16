@@ -238,6 +238,11 @@ function App(){
        <label>File type<select value={container} onChange={e=>setContainer(e.target.value)}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>}
      </form>
+     {isYouTube(url)&&<button type="button" className="converter-sample" onClick={()=>{
+      setConvertUrl(url.trim());setAlternatives([]);setAlternativesNotice('');setConvertError('');
+      const panel=document.getElementById('vyrnivo-converter');
+      if(panel){panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'center'})}
+     }}>Search licensed alternatives for this YouTube link <Icon name="arrow" size={14}/></button>}
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
