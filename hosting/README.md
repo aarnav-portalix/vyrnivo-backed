@@ -1,5 +1,21 @@
 # Vyrnivo file hosting
 
+## Working deployment path (November 2026)
+
+**Recommended: host the entire app on one Render web service** using the repository's `render.yaml` Blueprint. The Docker service serves the React website, YouTube/Instagram search, local uploads, and /api/downloads from the **same origin**. This avoids the cross-service token and streaming setup entirely. The backend token remains server-side; browsers no longer need or receive it. Same-origin POST requests are allowed while cross-origin writes are rejected.
+
+1. In Render, create a Blueprint from this public GitHub repository and confirm deployment of `vyrnivo-downloads`.
+2. Open the web service's `https://...onrender.com` address directly; it is the Vyrnivo website and API.
+3. Verify `/health` returns `ok: true` and `downloads: true`, then use the Library tab to upload your own permitted audio/video file and download it back. Check the response bytes, not just whether the link appears.
+4. Test a permitted public YouTube/Instagram link separately. The site reports source rejections (including 403/429) and does not claim those downloads succeeded.
+
+**If you keep the separately hosted Sites frontend** instead, configure its *server-side* `DOWNLOAD_BACKEND_URL` with the new Render HTTPS origin and `DOWNLOAD_BACKEND_TOKEN` equal to the Render service's `DOWNLOAD_API_TOKEN`. Do not set the token in browser JS, public repository variables, or build-time frontend secrets. The frontend proxy passes response streams through.
+
+**Important limits:** Free Render instances can sleep or restart, deleting temporary files before the promised 10-minute expiry; 200 MB/30-minute source limits remain and extraction can be rejected by media platforms. An unconfigured SearXNG instance does not make Instagram keyword search work; the website offers an indexed web-search link instead. Nothing here guarantees any particular site's rate limits can be bypassed.
+
+Run `npm ci && npm run build && node --test --test-concurrency=1 hosting/*.test.mjs` to check the implementation. GitHub Actions runs this on pushes. These tests cover prepared bytes and own-file uploads, **not** acceptance by live YouTube/Instagram servers.
+
+
 Implemented, but external storage is disabled until runtime configuration is supplied. The published Sites Worker exposes an honest disconnected status. It does not execute this Node service. Deploy the Docker image separately (or host the entire app with it). This does not yet download media from YouTube/Instagram.
 
 ## Routing and retention
