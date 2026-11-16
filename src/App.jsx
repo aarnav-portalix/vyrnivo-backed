@@ -220,7 +220,7 @@ function App(){
     <div className="faq-items">{faqs.map(([question,answer])=><details key={question} className="faq-item"><summary><span>{question}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
    </section>}
   </main>
-  <footer className="footer"><span>vyrnivo © 2026</span><span>Only save content you have permission to download.</span></footer>
+  <footer className="footer"><span>vyrnivo</span><span>Only save content you have permission to download.</span></footer>
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
   {toast&&<div className="toast" role="status"><Icon name="check" size={18}/>{toast}</div>}
  </div>
