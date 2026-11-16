@@ -29,26 +29,20 @@ assert.equal(health.downloads,true);
 const downloads=await json(await call('/api/downloads/status'));
 assert.equal(downloads.enabled,true);
 const uploads=await json(await call('/api/files/status'));
-assert.equal(uploads.enabled,true);
-
-const payload=Buffer.from('Vyrnivo automated upload integrity test', 'utf8');
-const posted=await call('/api/files/upload',{
- method:'POST',
- headers:{Origin:base,'Content-Type':'audio/wav','X-File-Name':'vyrnivo-smoke.wav'},
- body:payload
+assert.equal(uploads.enabled,false,'Manual uploads must be disabled');
+const body=Buffer.from('Retired public upload');
+const uploaded=await call('/api/files/upload',{
+ method:'POST',headers:{Origin:base,'Content-Type':'audio/wav'},body
 });
-const job=await json(posted);
-assert.equal(job.state,'ready');
-assert.equal(job.bytes,payload.length);
-assert.ok(/^\/api\/downloads\/[0-9a-f-]{36}\/file$/.test(job.url),'Expected a temporary file URL');
-const fetched=await call(job.url);
-assert.equal(fetched.status,200);
-const received=Buffer.from(await fetched.arrayBuffer());
-assert.equal(hash(received),hash(payload),'Returned bytes must match exactly');
-const denied=await call('/api/files/upload',{
- method:'POST',
- headers:{Origin:'https://untrusted.invalid','Content-Type':'audio/wav','X-File-Name':'not-allowed.wav'},
- body:payload
+assert.equal(uploaded.status,410,'Arbitrary public uploads should not be permitted');
+const rejected=await call('/api/downloads',{
+ method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
+ body:JSON.stringify({url:'https://example.org/not-media',mode:'Video + audio',quality:'720p',container:'MP4'})
 });
-assert.equal(denied.status,403,'Cross-origin uploads must be refused');
-console.log('LIVE SMOKE PASSED: web page, health, API, temporary upload, exact-byte download and cross-origin protection.');
+assert.equal(rejected.status,400,'Only supported source links are allowed');
+const denied=await call('/api/downloads',{
+ method:'POST',headers:{Origin:'https://untrusted.invalid','Content-Type':'application/json'},
+ body:JSON.stringify({url:'https://example.org/not-media',mode:'Video + audio',quality:'720p',container:'MP4'})
+});
+assert.equal(denied.status,403);
+console.log('LIVE SMOKE PASSED: website, download API, source validation, manual upload removal, and cross-origin protection.');
