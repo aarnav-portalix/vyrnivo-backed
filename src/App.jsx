@@ -251,6 +251,13 @@ function App(){
  const backupBlocked=Number(status?.backupRetryAt)>tick;
  const remaining=until=>{const seconds=Math.max(0,Math.ceil((Number(until||0)-tick)/1000));return seconds>=60?Math.ceil(seconds/60)+' min':seconds+' sec'};
  const overallServiceLabel=status?.enabled===false?'Offline':primaryBlocked?(status?.freeFallbackEnabled&&!backupBlocked?'Backup ready to try':'Limited'):'Ready to try';
+ const jobView=<>
+     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
+     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
+     {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
+
+ </>;
  return <div className="app-shell">
   <div className="ambient" aria-hidden="true"><span/><span/></div>
   <header className="topbar">
@@ -261,7 +268,7 @@ function App(){
   </header>
   <main className="content" id="main-content">
    <div className="hero">
-    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':'BEYOND THE DOWNLOAD'}</p>
+    <p className="kicker">{page==='download'&&'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='engine'?<>Our own <em>engine.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
     <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':'Answers, discovery, and everything else — all in one place.'}</p>
    </div>
@@ -290,11 +297,14 @@ function App(){
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
-     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
-     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
-     {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
-     {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
-     <details className="converter-tool" id="vyrnivo-converter">
+     {jobView}
+
+    </section>
+    }
+
+   {page==='engine'&&<section className="panel engine-panel" aria-label="Vyrnivo's own media engine">
+    <div className="engine-intro"><strong>Vyrnivo Converter</strong><p>Our FFmpeg-powered converter works with approved public media files and searches for independently hosted Creative Commons alternatives. An alternative may be a clip, not the original YouTube upload.</p></div>
+     <details className="converter-tool engine-tool" id="vyrnivo-converter" open>
       <summary><span><Icon name="tune" size={18}/> Vyrnivo Converter <small>Our own engine · Beta</small></span><span className="converter-plus" aria-hidden="true">+</span></summary>
       <div className="converter-body">
        <p>Convert approved files to MP4 or MP3, or paste a YouTube link to search Wikimedia Commons for separately hosted, freely licensed alternatives. Related files may be clips, edits or different versions—not the original YouTube upload.</p>
@@ -321,8 +331,18 @@ function App(){
        <p className="converter-hint">30 MB source limit · 2-minute output maximum · file expires 10 minutes after conversion · only convert media you have permission to use.</p>
       </div>
      </details>
-    </section>
-    : <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
+    {jobView}
+   </section>}
+   {page==='about'&&<section className="about-intro"><h2>All the extras, neatly organized.</h2><p>Frequently asked questions, discovery, file rules, and everything beyond the download.</p><div className="about-notes"><span>Free to use</span><span>10-minute file links</span><span>No account needed</span></div></section>}
+   {page==='about'&&<section className="faq" id="faq" aria-labelledby="faq-title">
+    <div className="faq-head"><p className="faq-eyebrow">Need a hand?</p><h2 id="faq-title">Frequently asked questions</h2></div>
+    <div className="faq-items">{faqs.map(([question,answer])=><details key={question} className="faq-item"><summary><span>{question}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
+   </section>}
+   {page==='about'&&<details className="about-explore">
+    <summary><span><Icon name="search" size={19}/> Explore & discover <small>YouTube and public Instagram Reels</small></span><span className="faq-plus" aria-hidden="true">+</span></summary>
+    <div className="about-explore-body">
+     <div className="search-mode-tabs" role="group" aria-label="Search platform"><button type="button" className={searchSource==='youtube'?'active':''} aria-pressed={searchSource==='youtube'} onClick={()=>switchSearchSource('youtube')}><Icon name="youtube" size={16}/> YouTube</button><button type="button" className={searchSource==='instagram'?'active':''} aria-pressed={searchSource==='instagram'} onClick={()=>switchSearchSource('instagram')}><Icon name="instagram" size={16}/> Instagram</button></div>
+    <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
      <form className="search-panel" onSubmit={search}>
       <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={isInstagram?'Search Reels, topics, hashtags, creators…':'Search videos, creators, music…'} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
       <button type="submit" className="cta" disabled={searching}>{searching?'Searching…':'Search'} <Icon name="arrow" size={18}/></button>
@@ -337,11 +357,9 @@ function App(){
        <div className="media-content"><h2 title={item.title}>{item.title}</h2><p>{item.creator||'Public video'}</p><div className="media-actions"><button type="button" className="outline-btn" onClick={()=>setPreview(item)}>Preview</button><button type="button" className="mini-primary" onClick={()=>chooseResult(item)}>Use link <Icon name="arrow" size={16}/></button></div></div>
       </article>)}
      </div>}
-    </section>}
-   {page==='download'&&<section className="faq" id="faq" aria-labelledby="faq-title">
-    <div className="faq-head"><p className="faq-eyebrow">Need a hand?</p><h2 id="faq-title">Frequently asked questions</h2></div>
-    <div className="faq-items">{faqs.map(([question,answer])=><details key={question} className="faq-item"><summary><span>{question}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
-   </section>}
+    </section>
+    </div>
+   </details>
   </main>
   <footer className="footer"><span>vyrnivo</span><span>Only save content you have permission to download.</span></footer>
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
