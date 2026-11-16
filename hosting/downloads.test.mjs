@@ -151,3 +151,34 @@ test('blocked Render YouTube extractor falls back to actual free API media bytes
   assert.equal(result.sourceAvailability.youtube,'backup-available');
  }finally{manager.close()}
 });
+
+test('download creation is blocked until a verified human token is supplied',async()=>{
+ let started=0;
+ const manager=await createDownloads({
+  enabled:true,
+  verifyToken:async token=>token==='valid-human-token'?{ok:true}:{ok:false,status:403,code:'BOT_CHECK_FAILED',error:'Please verify you are human.'},
+  spawnProcess:()=>{
+   started++;
+   const proc=new EventEmitter();proc.stdout=new EventEmitter();proc.stderr=new EventEmitter();
+   queueMicrotask(()=>proc.emit('close',1));
+   return proc;
+  }
+ });
+ const submit=async token=>{
+  const body={...input,url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',...(token?{turnstileToken:token}:{})};
+  const req=Readable.from([Buffer.from(JSON.stringify(body))]);req.method='POST';
+  let code=0,json;
+  const res={writeHead(status){code=status},end(payload){json=JSON.parse(payload)}};
+  await manager.handle(req,res,'/api/downloads');
+  return {code,json};
+ };
+ try{
+  const denied=await submit();
+  assert.equal(denied.code,403);
+  assert.equal(denied.json.code,'BOT_CHECK_FAILED');
+  assert.equal(started,0,'No process must start before human verification succeeds');
+  const accepted=await submit('valid-human-token');
+  assert.equal(accepted.code,202);
+  assert.equal(accepted.json.state,'processing');
+ }finally{manager.close()}
+});
