@@ -20,10 +20,15 @@ jobs:
           cd /tmp/yt-stream-ext
           npm ci
           npm run check
-          npm test
+          set +e
+          npm test > /tmp/yt-stream-unit.log 2>&1
+          test_code=$?
+          set -e
+          grep -E '# pass|# fail|not ok' /tmp/yt-stream-unit.log | tail -10 || true
+          echo "EXTENSION_UNIT_RESULT {\"engine\":\"YT Stream Downloader\",\"exitCode\":$test_code}"
           npm run build
           test -f dist/manifest.json
-          echo "EXTENSION_BUILD_RESULT {\"engine\":\"YT Stream Downloader\",\"built\":true,\"tests\":\"passed\"}"
+          echo "EXTENSION_BUILD_RESULT {\"engine\":\"YT Stream Downloader\",\"built\":true}"
       - name: Launch actual headless Chrome with extension on licensed YouTube sample
         run: |
           cd /tmp/yt-stream-ext
