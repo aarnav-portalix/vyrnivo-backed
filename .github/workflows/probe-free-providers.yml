@@ -1,5 +1,9 @@
 name: Probe free YouTube media providers
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/probe-free-providers.yml
   pull_request:
     paths:
       - .github/workflows/probe-free-providers.yml
