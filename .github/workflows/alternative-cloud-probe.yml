@@ -31,7 +31,7 @@ jobs:
           cd /tmp/vyrnivo-cloud-probe
           trap 'rm -f probe.*' EXIT
           echo "PROBE_NETWORK=GitHub hosted Linux VM (not a public web server)"
-          python -m yt_dlp --ignore-config --no-playlist --no-progress --socket-timeout 10 --extractor-retries 0 --retries 0 --fragment-retries 0 --js-runtimes node --max-filesize 8M --match-filter 'duration <=? 45' -f 'best[ext=mp4][height<=480]/best[height<=480]/best' -o 'probe.%(ext)s' 'https://www.youtube.com/watch?v=BaW_jenozKc'
+          python -m yt_dlp --ignore-config --no-playlist --no-progress --socket-timeout 10 --extractor-retries 0 --retries 0 --fragment-retries 0 --js-runtimes node --max-filesize 8M --match-filter 'duration <=? 45' -f 'best[ext=mp4][height<=480]/best[height<=480]/best' -o 'probe.%(ext)s' 'https://www.youtube.com/watch?v=jNQXAC9IVRw'
           python - <<'PY'
           import glob,os,sys
           matches=glob.glob('probe.*')
