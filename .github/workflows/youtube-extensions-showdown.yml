@@ -50,3 +50,13 @@ jobs:
           pnpm install --no-frozen-lockfile
           timeout 180s pnpm build
           echo "EXTENSION_BUILD_RESULT {\"engine\":\"Avi12 YouTube Downloader\",\"built\":true,\"verifiedMedia\":false,\"note\":\"build is not playback verification\"}"
+      - name: Try loading Avi12 extension in actual Chrome on CC YouTube video
+        run: |
+          test -f /tmp/avi12-ext/.output/chrome-mv3/manifest.json
+          mkdir -p /tmp/avi-browser-probe
+          cd /tmp/avi-browser-probe
+          npm init -y >/dev/null
+          npm install puppeteer-core@latest >/dev/null
+          cp "$GITHUB_WORKSPACE/scripts/extension-browser-probe.mjs" ./probe.mjs
+          timeout 90s node probe.mjs /tmp/avi12-ext/.output/chrome-mv3
+
