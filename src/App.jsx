@@ -297,8 +297,20 @@ function App(){
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
+     <div className="live-dashboard" aria-label="Live downloader status">
+      <div className="live-overview">
+       <div className="live-service"><span className={'live-dot '+(status?.enabled===false?'off':primaryBlocked&&!status?.freeFallbackEnabled?'warning':'on')}/><span><strong>Downloader status</strong><small>{overallServiceLabel}</small></span></div>
+       <div className="live-visitors" aria-label="Estimated active visitors"><Icon name="users" size={16}/><strong>{Number.isInteger(presence?.online)?presence.online:'—'}</strong><span>online</span></div>
+       <button type="button" className="status-toggle" aria-expanded={statusExpanded} onClick={()=>setStatusExpanded(x=>!x)}>{statusExpanded?'Hide details':'Details'} <Icon name="activity" size={15}/></button>
+      </div>
+      {statusExpanded&&<div className="provider-details">
+       <div className="provider-item"><div><strong>Vyrnivo / yt-dlp</strong><span>Primary YouTube downloader</span></div><span className={'provider-state '+(primaryBlocked?'limited':'')}>{status?.enabled===false?'Offline':primaryBlocked?'Rate-limited · retry in '+remaining(status.youtubeRetryAt):'Ready to try'}</span></div>
+       <div className="provider-item"><div><strong>WebDownloader</strong><span>Free MP4 + MP3 backup</span></div><span className={'provider-state '+(backupBlocked?'limited':'')}>{!status?.freeFallbackEnabled?'Not enabled':backupBlocked?'Cooling down · '+remaining(status.backupRetryAt):'Ready to try'}</span></div>
+       <p className="status-footnote">The engine status reflects recent cooldowns, not guaranteed access to every video. Online is an approximate count of browser sessions seen within 75 seconds on this server; no accounts are tracked.</p>
+       <button type="button" className="refresh-status" onClick={refreshStatus}><Icon name="activity" size={15}/> Refresh engine status</button>
+      </div>}
+     </div>
      {jobView}
-
     </section>
     }
 
