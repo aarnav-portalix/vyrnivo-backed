@@ -1,6 +1,8 @@
 import {spawn} from 'node:child_process';
 import {mkdir,rm,readdir,stat,open} from 'node:fs/promises';
-import {createReadStream} from 'node:fs';
+import {createReadStream,createWriteStream} from 'node:fs';
+import {Transform} from 'node:stream';
+import {pipeline} from 'node:stream/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
@@ -35,8 +37,10 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
-export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now}={}){
- const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;const successful=new Map();const inProgress=new Map();
+export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,agentToken=''}={}){
+ const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;const successful=new Map();const inProgress=new Map();let agentLastSeen=0;
+ const agentOnline=()=>Boolean(agentToken)&&agentLastSeen>0&&now()-agentLastSeen<45000;
+ const finishAgent=j=>{if(inProgress.get(j.requestKey)===j.id)inProgress.delete(j.requestKey);active=false};
  if(enabled){await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true,mode:0o700})}
  const publicJob=j=>({id:j.id,state:j.state,error:j.error,failureCode:j.failureCode||null,canRetryWithDifferentFormat:j.canRetryWithDifferentFormat===true,expiresAt:j.expiresAt,name:j.name,bytes:j.bytes,provider:'Temporary server storage',url:j.state==='ready'&&now()<j.expiresAt?'/api/downloads/'+j.id+'/file':null,downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/downloads/'+j.id+'/file':null,hosted:j.hosted});
  async function run(j,input){const youtubeInput=/^(?:youtube\.com|m\.youtube\.com|music\.youtube\.com|youtu\.be|youtube-nocookie\.com)$/.test(new URL(input.url).hostname.replace(/^www\./,''));try{await mkdir(j.dir,{recursive:true,mode:0o700});let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500)});proc.stderr.on('data',d=>{stderr=(stderr+d).slice(-4000);if(/(?:HTTP Error|status(?: code)?)\s*:?\s*429\b|\b429 Too Many Requests\b|Too Many Requests/i.test(stderr))proc.kill('SIGTERM')});const timeout=setTimeout(()=>proc.kill('SIGKILL'),180000);const disk=setInterval(async()=>{try{let bytes=0;for(const f of await readdir(j.dir))bytes+=(await stat(join(j.dir,f))).size;if(bytes>400*1024*1024)proc.kill('SIGKILL')}catch{}},1000);const clear=()=>{clearTimeout(timeout);clearInterval(disk)};proc.on('error',e=>{clear();reject(e)});proc.on('close',code=>{clear();if(code===0)resolve();else {
@@ -48,10 +52,76 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }})});
  const seenFiles=await readdir(j.dir);const names=seenFiles.filter(n=>/^media\.[a-z0-9]+$/i.test(n)&&!n.endsWith('.part'));if(names.length!==1){console.warn('extractor_no_output',JSON.stringify({origin:new URL(input.url).hostname,files:seenFiles.map(n=>n.replace(/[^a-zA-Z0-9_.-]/g,'_').slice(0,60)).slice(0,12),stdout:stdout.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-1200),stderr:stderr.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-800)}));throw Error(/does not pass filter|duration|not available/i.test(stdout)?'The source video was skipped by media metadata filters.':'The extractor returned no downloadable media. This Reel may be inaccessible from the server.');}j.path=join(j.dir,names[0]);j.bytes=(await stat(j.path)).size;if(!j.bytes||j.bytes>200*1024*1024)throw Error('This file exceeds the 200 MB server limit.');j.name=names[0];j.expiresAt=now()+600000;j.state='ready';successful.set(j.requestKey,j.id);if(onReady&&j.bytes<=50*1024*1024){try{j.hosted=await onReady(j.path,j.name)}catch{j.hosted={notice:'External hosting failed; direct download remains available.'}}}
  }catch(e){j.state='failed';j.error=e.message;await rm(j.dir,{recursive:true,force:true})}finally{if(inProgress.get(j.requestKey)===j.id)inProgress.delete(j.requestKey);active=false}}
- const cleanup=async()=>{for(const [id,j]of jobs){if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';if(successful.get(j.requestKey)===id)successful.delete(j.requestKey);await rm(j.dir,{recursive:true,force:true})}if(['failed','expired'].includes(j.state)&&now()-j.createdAt>3600000)jobs.delete(id)}};
+ const AGENT_MAX_BYTES=200*1024*1024;
+ const agentFailures={
+  SOURCE_RATE_LIMITED:'YouTube is rate-limiting the connected download engine. Try again later.',
+  SOURCE_VERIFICATION_REQUIRED:'YouTube requires account or human verification for this video.',
+  SOURCE_ACCESS_DENIED:'YouTube denied access to this video from the connected engine.',
+  MEDIA_FORMAT_UNAVAILABLE:'The selected quality or format is unavailable for this video.',
+  SOURCE_NETWORK_ERROR:'The connected download engine could not reach YouTube.',
+  EXTRACTION_FAILED:'The connected download engine could not prepare the video.'
+ };
+ async function handleAgent(req,res,path,send){
+  if(!agentToken||req.headers.authorization!=='Bearer '+agentToken)return send({error:'Agent authorization required.'},401);
+  if(path==='/api/downloads/agent/heartbeat'&&req.method==='POST'){
+   agentLastSeen=now();return send({ok:true,connected:true});
+  }
+  if(path==='/api/downloads/agent/next'&&req.method==='GET'){
+   agentLastSeen=now();
+   const j=[...jobs.values()].find(j=>j.agent&&j.state==='processing'&&!j.assignedAt);
+   if(!j)return send({job:null});
+   j.assignedAt=now();
+   return send({job:{id:j.id,input:j.input}});
+  }
+  const match=path.match(/^\/api\/downloads\/agent\/([0-9a-f-]{36})\/(complete|failed)$/);
+  if(!match||req.method!=='POST')return send({error:'Agent route not found.'},404);
+  agentLastSeen=now();
+  const j=jobs.get(match[1]);
+  if(!j||!j.agent||j.state!=='processing'||!j.assignedAt)return send({error:'Agent job is no longer available.'},409);
+  if(match[2]==='failed'){
+   let body='';for await(const chunk of req){body+=chunk;if(body.length>2048)return send({error:'Payload too large.'},413)}
+   let code='EXTRACTION_FAILED';
+   try{const parsed=JSON.parse(body);if(Object.hasOwn(agentFailures,parsed.code))code=parsed.code}catch{}
+   j.failureCode=code;j.canRetryWithDifferentFormat=code==='MEDIA_FORMAT_UNAVAILABLE';
+   j.error=agentFailures[code];j.state='failed';finishAgent(j);
+   await rm(j.dir,{recursive:true,force:true});
+   return send({ok:true});
+  }
+  const extension=String(req.headers['x-vyrnivo-extension']||'').toLowerCase();
+  const lengthHeader=req.headers['content-length'];
+  const length=Number(lengthHeader);
+  if(!/^(mp4|webm|mkv|mp3|m4a|wav|ogg|opus)$/.test(extension))return send({error:'Unsupported media extension.'},400);
+  if(lengthHeader!==undefined&&(!Number.isSafeInteger(length)||length<=0||length>AGENT_MAX_BYTES))return send({error:'File exceeds 200 MB limit.'},413);
+  let bytes=0;
+  try{
+   await mkdir(j.dir,{recursive:true,mode:0o700});
+   const target=join(j.dir,'media.'+extension);
+   const limiter=new Transform({transform(chunk,encoding,callback){
+    bytes+=chunk.length;
+    if(bytes>AGENT_MAX_BYTES)callback(Error('Upload exceeds 200 MB.'));else callback(null,chunk);
+   }});
+   await pipeline(req,limiter,createWriteStream(target,{mode:0o600}));
+   if(bytes<128)throw Error('Empty media output.');
+   j.path=target;j.name='media.'+extension;j.bytes=bytes;
+   j.expiresAt=now()+600000;j.state='ready';successful.set(j.requestKey,j.id);
+   finishAgent(j);return send({ok:true,bytes});
+  }catch(error){
+   j.failureCode='EXTRACTION_FAILED';j.error='The connected engine could not transfer the completed file.';
+   j.state='failed';finishAgent(j);
+   await rm(j.dir,{recursive:true,force:true});
+   if(!res.destroyed)return send({error:j.error},400);
+  }
+ }
+ const cleanup=async()=>{for(const [id,j]of jobs){
+  if(j.agent&&j.state==='processing'&&now()-j.createdAt>600000){
+   j.state='failed';j.failureCode='SOURCE_NETWORK_ERROR';
+   j.error='The connected engine did not complete this video in time.';
+   finishAgent(j);await rm(j.dir,{recursive:true,force:true});
+  }if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';if(successful.get(j.requestKey)===id)successful.delete(j.requestKey);await rm(j.dir,{recursive:true,force:true})}if(['failed','expired'].includes(j.state)&&now()-j.createdAt>3600000)jobs.delete(id)}};
  const timer=enabled?setInterval(()=>cleanup().catch(()=>{}),5000):null;timer?.unref();
- return {enabled,sweep:cleanup,close(){clearInterval(timer)},async handle(req,res,path){const send=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};if(path==='/api/downloads/status')return send({enabled,providers:['Temporary server storage'],maxBytes:50*1024*1024,youtubeRetryAt,sourceAvailability:{youtube:now()<youtubeRetryAt?'rate-limited':'unverified',instagram:'unverified'},maxMB:200,maxMinutes:30,retentionMinutes:10,reason:enabled?null:'Temporary download server is offline.'});if(!enabled)return send({error:'Download server is not connected.'},503);
+ return {enabled,sweep:cleanup,close(){clearInterval(timer)},async handle(req,res,path){const send=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};if(path==='/api/downloads/status')return send({enabled,providers:['Temporary server storage'],maxBytes:50*1024*1024,youtubeRetryAt:agentOnline()?0:youtubeRetryAt,agentConnected:agentOnline(),sourceAvailability:{youtube:agentOnline()?'agent-online':now()<youtubeRetryAt?'rate-limited':'unverified',instagram:'unverified'},maxMB:200,maxMinutes:30,retentionMinutes:10,reason:enabled?null:'Temporary download server is offline.'});if(!enabled)return send({error:'Download server is not connected.'},503);
+ if(path.startsWith('/api/downloads/agent/'))return handleAgent(req,res,path,send);
  if(path==='/api/downloads/upload')return send({error:'Manual uploads are disabled. Paste a YouTube or Instagram link; Vyrnivo prepares a temporary download automatically.'},410);
- if(path==='/api/downloads'&&req.method==='POST'){let body='';for await(const chunk of req){body+=chunk;if(body.length>4096)return send({error:'Request too large'},413)}let input;try{input=validate(JSON.parse(body))}catch(e){return send({error:e.message},400)}if(/(?:youtube\.com|youtu\.be)/.test(new URL(input.url).hostname)&&now()<youtubeRetryAt){res.setHeader('retry-after',String(Math.ceil((youtubeRetryAt-now())/1000)));return send({error:'YouTube is currently blocking this Render server (HTTP 429). Changing the quality will not fix it. Try again after the cooldown.',retryAt:youtubeRetryAt,code:'SOURCE_RATE_LIMITED'},429)}const requestKey=JSON.stringify([input.url,input.mode,input.quality,input.container]);const prior=jobs.get(successful.get(requestKey));if(prior?.state==='ready'&&now()<prior.expiresAt)return send(publicJob(prior),200);const pending=jobs.get(inProgress.get(requestKey));if(pending?.state==='processing')return send(publicJob(pending),202);if(active)return send({error:'Another source is being prepared. Please try again when it finishes.',code:'SERVER_BUSY'},429);const id=randomUUID();const j={id,dir:join(root,id),state:'processing',createdAt:now(),requestKey};jobs.set(id,j);inProgress.set(requestKey,id);active=true;void run(j,input);return send(publicJob(j),202)}
+ if(path==='/api/downloads'&&req.method==='POST'){let body='';for await(const chunk of req){body+=chunk;if(body.length>4096)return send({error:'Request too large'},413)}let input;try{input=validate(JSON.parse(body))}catch(e){return send({error:e.message},400)}const youtubeInput=/(?:youtube\.com|youtu\.be)/.test(new URL(input.url).hostname);const delegated=youtubeInput&&agentOnline();if(youtubeInput&&!delegated&&now()<youtubeRetryAt){res.setHeader('retry-after',String(Math.ceil((youtubeRetryAt-now())/1000)));return send({error:'YouTube is currently blocking this Render server (HTTP 429). Changing the quality will not fix it. Try again after the cooldown.',retryAt:youtubeRetryAt,code:'SOURCE_RATE_LIMITED'},429)}const requestKey=JSON.stringify([input.url,input.mode,input.quality,input.container]);const prior=jobs.get(successful.get(requestKey));if(prior?.state==='ready'&&now()<prior.expiresAt)return send(publicJob(prior),200);const pending=jobs.get(inProgress.get(requestKey));if(pending?.state==='processing')return send(publicJob(pending),202);if(active)return send({error:'Another source is being prepared. Please try again when it finishes.',code:'SERVER_BUSY'},429);const id=randomUUID();const j={id,dir:join(root,id),state:'processing',createdAt:now(),requestKey};if(delegated){j.agent=true;j.input=input}jobs.set(id,j);inProgress.set(requestKey,id);active=true;if(!delegated)void run(j,input);return send(publicJob(j),202)}
  if(req.method!=='GET')return send({error:'Method not allowed'},405);const parts=path.split('/');const j=jobs.get(parts[3]);if(!j)return send({error:'Download missing or expired.'},404);if(parts[4]==='file'){if(j.state!=='ready'||now()>=j.expiresAt)return send({error:'Download is not ready or has expired.'},410);res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+j.name+'"','content-length':j.bytes,'cache-control':'no-store','x-content-type-options':'nosniff'});const stream=createReadStream(j.path);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());stream.pipe(res);return}return send(publicJob(j))}}
 }
