@@ -8,7 +8,7 @@ test('accepts direct CC0 media URL and MP4 conversion',()=>{
 });
 test('rejects YouTube watch pages, arbitrary hosts, redirects, private targets, unsupported types',()=>{
  for(const link of [
- 'https://youtube.com/watch?v=jNQXAC9IVRw',
+ 'https://youtube.com/watch?v=BaW_jenozKc',
  'http://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
  'https://127.0.0.1/private.mp4',
  'https://interactive-examples.mdn.mozilla.net.evil.org/video.mp4',
@@ -29,5 +29,12 @@ test('verified CC BY YouTube film resolves only to an attributed excerpt, not Yo
  assert.equal(sample.sourceMetadata?.licenseUrl,'https://creativecommons.org/licenses/by/3.0/');
 });
 test('unapproved YouTube uploads never silently reuse unrelated video files',()=>{
- assert.throws(()=>validateConversion({url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',output:'MP4'}),/No approved, separately hosted copy/);
+ assert.throws(()=>validateConversion({url:'https://www.youtube.com/watch?v=BaW_jenozKc',output:'MP4'}),/No approved, separately hosted copy/);
+});
+
+test('second CC-licensed YouTube link maps to full separately hosted film',()=>{
+ const media=validateConversion({url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',output:'MP4'});
+ assert.equal(media.extension,'webm');
+ assert.equal(media.sourceMetadata?.durationSeconds,19);
+ assert.match(media.sourceMetadata?.attribution,/Jawed Karim/);
 });

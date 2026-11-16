@@ -35,7 +35,7 @@ export function validateConversion(input){
   if(input.output!=='MP4'&&input.output!=='MP3')throw Error('Choose MP4 or MP3 as the output.');
   const sourceUrl=new URL(licensed.mediaUrl);
   if(!SOURCE_HOSTS.has(sourceUrl.hostname))throw Error('The licensed source is not approved.');
-  return {url:sourceUrl.href,extension:'ogv',output:input.output,sourceMetadata:{
+  return {url:sourceUrl.href,extension:sourceUrl.pathname.split('.').pop().toLowerCase(),output:input.output,sourceMetadata:{
    videoTitle:licensed.videoTitle,description:licensed.description,sourcePage:licensed.sourcePage,
    license:licensed.license,licenseUrl:licensed.licenseUrl,attribution:licensed.attribution,
    transformed:licensed.transformed,durationSeconds:licensed.durationSeconds,

@@ -28,7 +28,7 @@ const faqs=[
  ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
  ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
  ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.'],
- ['What is Vyrnivo Converter?','Our own online FFmpeg converter turns supported direct media files into MP4 or MP3. It also has a limited trial matching one YouTube film to a separately hosted, licensed 33-second excerpt—not the full upload.']
+ ['What is Vyrnivo Converter?','Our online FFmpeg engine converts approved media files to MP4/MP3. Two YouTube-linked examples are supported through independently hosted Creative Commons copies; most YouTube links are not supported.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
@@ -219,7 +219,7 @@ function App(){
      <details className="converter-tool" id="vyrnivo-converter">
       <summary><span><Icon name="tune" size={18}/> Vyrnivo Converter <small>Our own engine · Beta</small></span><span className="converter-plus" aria-hidden="true">+</span></summary>
       <div className="converter-body">
-       <p>Convert approved video and audio files to MP4 or MP3. Our licensed-source trial also recognizes one specific YouTube film and converts its separately hosted 33-second excerpt. This does not download the YouTube upload or work for other YouTube videos.</p>
+       <p>Convert approved video and audio files to MP4 or MP3. Our licensed-source trial recognizes two YouTube film links through separately hosted Creative Commons files, one full short video and one excerpt. This is not a general YouTube downloader.</p>
        <form onSubmit={startConversion}>
         <label className="converter-label" htmlFor="converter-url">Approved direct media URL or licensed YouTube trial link</label>
         <input id="converter-url" type="url" required value={convertUrl} onChange={e=>{setConvertUrl(e.target.value);setConvertError('')}} placeholder="https://…/video.webm" autoComplete="url" spellCheck={false}/>
@@ -228,7 +228,8 @@ function App(){
          <button type="submit" className="cta" disabled={convertBusy||status?.enabled===false}>{convertBusy?'Starting…':'Convert file'}<Icon name="arrow" size={16}/></button>
         </div>
        </form>
-       <div className="converter-examples"><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://www.youtube.com/watch?v=aqz-KE-bpKQ');setConvertFormat('MP4');setConvertError('')}}>Try a licensed YouTube-link example (33-second excerpt)</button><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4');setConvertFormat('MP4');setConvertError('')}}>Try a free CC0 sample video</button></div>
+       <div className="converter-examples"><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://www.youtube.com/watch?v=aqz-KE-bpKQ');setConvertFormat('MP4');setConvertError('')}}>Try a licensed YouTube-link example (33-second excerpt)</button><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://www.youtube.com/watch?v=jNQXAC9IVRw');setConvertFormat('MP4');setConvertError('')}}>Try a full CC-licensed YouTube-linked video (19 seconds)</button><button className="converter-sample" type="button" onClick={()=>{setConvertUrl('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4');setConvertFormat('MP4');setConvertError('')}}>Try a free CC0 sample video</button></div>
+       {convertUrl.includes('jNQXAC9IVRw')&&<div className="converter-license" role="note"><strong>Separately hosted full 19-second Creative Commons copy</strong><span>Me at the zoo · Jawed Karim and Yakov Lapitsky · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">CC BY 3.0</a> · <a href="https://commons.wikimedia.org/wiki/File:Me_at_the_zoo.webm" target="_blank" rel="noopener noreferrer">Source</a> · Not retrieved from YouTube</span></div>}
        {convertUrl.includes('aqz-KE-bpKQ')&&<div className="converter-license" role="note"><strong>Licensed alternate clip — not the full YouTube video</strong><span>Converts a 33-second extract of Big Buck Bunny hosted on Wikimedia Commons. Credit: © Blender Foundation / www.bigbuckbunny.org · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">CC BY 3.0</a> · <a href="https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_extract.ogv" target="_blank" rel="noopener noreferrer">Source</a></span></div>}
        {convertError&&<div className="message error" role="alert">{convertError}</div>}
        <p className="converter-hint">30 MB source limit · 2-minute output maximum · file expires 10 minutes after conversion · only convert media you have permission to use.</p>

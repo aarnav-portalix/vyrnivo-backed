@@ -35,7 +35,7 @@ try{
  await ready();
  const deny=await request('/api/converter',{method:'POST',headers:{Origin:'https://another-site.test','Content-Type':'application/json'},body:'{}'});
  assert.equal(deny.r.status,403,'Cross-origin writes must be rejected');
- const youtube=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',output:'MP4'})});
+ const youtube=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({url:'https://www.youtube.com/watch?v=BaW_jenozKc',output:'MP4'})});
  assert.equal(youtube.r.status,400,'Watch links must not impersonate direct media files');
  const mp4=await convert('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4','MP4');
  assert.equal(String.fromCharCode(...mp4.bytes.slice(4,8)),'ftyp','Expected genuine MP4 signature');
@@ -49,6 +49,11 @@ try{
  assert.equal(licensed.job.sourceMetadata?.alternateVersion,true);
  assert.equal(licensed.job.sourceMetadata?.durationSeconds,33);
  console.log('LICENSED_YOUTUBE_LINK_EXCERPT_OK',JSON.stringify({bytes:licensed.bytes.length,excerptSeconds:licensed.job.sourceMetadata.durationSeconds,source:'Wikimedia Commons',fullYoutubeUpload:false}));
+ const full=await convert('https://www.youtube.com/watch?v=jNQXAC9IVRw','MP4');
+ assert.equal(String.fromCharCode(...full.bytes.slice(4,8)),'ftyp');
+ assert.equal(full.job.sourceMetadata.durationSeconds,19);
+ console.log('SECOND_CC_YOUTUBE_LINK_OK',JSON.stringify({bytes:full.bytes.length,durationSeconds:19,source:'Wikimedia Commons'}));
+
 
 }catch(e){console.error('OWN_CONVERTER_TEST_FAILED',e?.stack||String(e));console.error('SERVER_STDERR',stderr);process.exitCode=1}
 finally{server.kill('SIGTERM')}
