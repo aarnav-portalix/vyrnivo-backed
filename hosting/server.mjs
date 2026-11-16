@@ -16,13 +16,14 @@ const server=http.createServer(async(req,res)=>{
  const path=new URL(req.url,'http://localhost').pathname;
  if(path==='/health')return json({ok:true,downloads:downloads.enabled,fileHosting:!!files});
  if(path.startsWith('/api/downloads')||path.startsWith('/api/files')){const trusted=env.DOWNLOAD_API_TOKEN&&req.headers.authorization==='Bearer '+env.DOWNLOAD_API_TOKEN;if(env.DOWNLOAD_API_TOKEN&&!trusted)return json({error:'Unauthorized'},401);if(!env.DOWNLOAD_API_TOKEN&&req.method==='POST'&&req.headers.origin!==env.APP_ORIGIN)return json({error:'Origin not allowed'},403)}
- if(path==='/api/files/status'&&req.method==='GET')return json(status());
+ if(files&&path==='/api/files/status'&&req.method==='GET')return json(status());
  if(path==='/api/internal/cleanup'&&req.method==='POST'){
   if(!files||!env.CLEANUP_TOKEN||req.headers.authorization!=='Bearer '+env.CLEANUP_TOKEN)return json({error:'Unauthorized'},401);
   await files.cleanup();return json({ok:true});
  }
  const ip=req.socket.remoteAddress,now=Date.now();let b=buckets.get(ip);if(!b||now-b.start>60000){b={start:now,count:0};buckets.set(ip,b)}
- if(path.startsWith('/api/')&&++b.count>30){res.setHeader('retry-after','60');return json({error:'Please wait before trying again.'},429)}
+ if(path.startsWith('/api/')&&++b.count>180){res.setHeader('retry-after','60');return json({error:'Please wait before trying again.'},429)}
+ if(!files&&downloads.enabled&&path.startsWith('/api/files/'))return await downloads.handle(req,res,path.replace('/api/files/','/api/downloads/'));
  if(path.startsWith('/api/downloads'))return await downloads.handle(req,res,path);
  if(path==='/api/files/upload'&&req.method==='POST'){
   if(!files)return json({error:status().reason},503);

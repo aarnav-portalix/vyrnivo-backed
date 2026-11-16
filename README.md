@@ -1,3 +1,3 @@
-# vyrnivo-backed
+# Vyrnivo backend
 
-Vyrnivo download backend. Deployment and configuration details are in hosting/README.md.
+See hosting/README.md for setup and limits.

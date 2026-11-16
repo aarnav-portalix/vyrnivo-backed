@@ -1,1 +1,22 @@
-export async function backend(request,env){const path=new URL(request.url).pathname;if(!env.DOWNLOAD_BACKEND_URL||!env.DOWNLOAD_BACKEND_TOKEN){if(path==='/api/downloads/status')return Response.json({enabled:false,reason:'Download server is not connected. Hosting account connection is required.'});if(path==='/api/files/status')return Response.json({enabled:false,providers:[],retentionMinutes:10,reason:'File hosting backend is not connected.'});return Response.json({error:'Download server is not connected.'},{status:503})}try{const base=new URL(env.DOWNLOAD_BACKEND_URL);if(base.protocol!=='https:')throw Error();const target=new URL(path,base);const headers=new Headers();headers.set('Authorization','Bearer '+env.DOWNLOAD_BACKEND_TOKEN);for(const key of ['content-type','content-length','x-file-name'])if(request.headers.has(key))headers.set(key,request.headers.get(key));const r=await fetch(target,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:request.body,redirect:'error',signal:AbortSignal.timeout(20000)});const out=new Headers(r.headers);out.delete('set-cookie');out.set('cache-control','no-store');return new Response(r.body,{status:r.status,headers:out})}catch{return Response.json({error:'Download server is starting or unavailable. Please try again shortly.'},{status:503})}}
+export async function backend(request,env){
+ const path=new URL(request.url).pathname;
+ if(!env.DOWNLOAD_BACKEND_URL||!env.DOWNLOAD_BACKEND_TOKEN)return Response.json({enabled:false,error:'Download backend configuration is missing.'},{status:503});
+ let timer;
+ try{
+  const controller=new AbortController();timer=setTimeout(()=>controller.abort(),70000);
+  const base=new URL(String(env.DOWNLOAD_BACKEND_URL));if(base.protocol!=='https:')throw new Error('Backend URL must use HTTPS');
+  const headers=new Headers({Authorization:'Bearer '+env.DOWNLOAD_BACKEND_TOKEN});
+  for(const name of ['content-type','x-file-name'])if(request.headers.has(name))headers.set(name,request.headers.get(name));
+  const init={method:request.method,headers,redirect:'manual',signal:controller.signal};
+  if(!['GET','HEAD'].includes(request.method))init.body=request.body;
+  const r=await fetch(new URL(path,base).href,init);
+  if(r.status>=300&&r.status<400)throw new Error('Backend returned an unexpected redirect');
+  const out=new Headers();for(const name of ['content-type','content-disposition','content-length','retry-after'])if(r.headers.has(name))out.set(name,r.headers.get(name));
+  out.set('cache-control','no-store');out.set('x-content-type-options','nosniff');
+  return new Response(r.body,{status:r.status,headers:out});
+ }catch(e){
+  const detail=String(e?.message||'Unknown error').split(String(env.DOWNLOAD_BACKEND_TOKEN)).join('[redacted]');
+  console.error('backend_proxy_failure',String(e?.name),detail);
+  return Response.json({enabled:false,error:'Download server is unavailable. Please try again shortly.',code:e?.name==='AbortError'?'BACKEND_TIMEOUT':'BACKEND_CONNECTION_FAILED'},{status:503});
+ }finally{clearTimeout(timer)}
+}

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vyrnivo-downloads
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DOWNLOADS_ENABLED
+        value: true
+      - key: DOWNLOAD_API_TOKEN
+        generateValue: true
