@@ -371,7 +371,7 @@ function App(){
      </div>}
     </section>
     </div>
-   </details>
+   </details>}
   </main>
   <footer className="footer"><span>vyrnivo</span><span>Only save content you have permission to download.</span></footer>
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
