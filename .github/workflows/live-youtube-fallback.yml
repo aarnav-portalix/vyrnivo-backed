@@ -1,0 +1,21 @@
+name: Verify deployed free YouTube backup
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/live-youtube-fallback.yml
+      - scripts/live-youtube-fallback.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Render deployment and real authorized YouTube MP4 bytes
+        run: node scripts/live-youtube-fallback.mjs
