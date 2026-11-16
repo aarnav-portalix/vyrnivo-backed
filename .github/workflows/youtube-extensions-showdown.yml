@@ -1,0 +1,47 @@
+name: 2026 Browser extension YouTube showdown
+on:
+  push:
+    branches: [experiment/youtube-engine-showdown-2026]
+    paths: [scripts/extension-browser-probe.mjs, .github/workflows/youtube-extensions-showdown.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  light-extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Build the lightweight extension from source and run its tests
+        run: |
+          git clone --depth 1 https://github.com/drhspfn/yt-stream-downloader.git /tmp/yt-stream-ext
+          cd /tmp/yt-stream-ext
+          npm ci
+          npm run check
+          npm test
+          npm run build
+          test -f dist/manifest.json
+          echo "EXTENSION_BUILD_RESULT {\"engine\":\"YT Stream Downloader\",\"built\":true,\"tests\":\"passed\"}"
+      - name: Launch actual headless Chrome with extension on licensed YouTube sample
+        run: |
+          cd /tmp/yt-stream-ext
+          npm install --no-save puppeteer-core@latest >/dev/null
+          cp "$GITHUB_WORKSPACE/scripts/extension-browser-probe.mjs" ./browser-probe.mjs
+          timeout 75s node browser-probe.mjs ./dist
+  avi-extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Build the actively maintained Avi12 Firefox/Chrome downloader
+        run: |
+          git clone --depth 1 https://github.com/avi12/youtube-downloader.git /tmp/avi12-ext
+          cd /tmp/avi12-ext
+          npm install -g pnpm@10
+          pnpm install --no-frozen-lockfile
+          timeout 180s pnpm build
+          echo "EXTENSION_BUILD_RESULT {\"engine\":\"Avi12 YouTube Downloader\",\"built\":true,\"verifiedMedia\":false,\"note\":\"build is not playback verification\"}"
