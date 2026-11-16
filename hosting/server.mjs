@@ -1,11 +1,13 @@
 import http from 'node:http';
 import {createDownloads} from './downloads.mjs';
 import {createConverter} from './converter.mjs';
+import {createPresence} from './presence.mjs';
 import {allowApi} from './access.mjs';
 import worker from '../dist/server/index.js';
 const env=process.env;
 const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false'});
 const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true'});
+const presence=createPresence();
 const buckets=new Map();
 const uploadRemoved=()=>({enabled:false,reason:'Manual uploads are disabled. Paste a YouTube or Instagram link to receive an automatically hosted 10-minute download.'});
 const server=http.createServer(async(req,res)=>{
@@ -13,11 +15,12 @@ const server=http.createServer(async(req,res)=>{
  try{
  const path=new URL(req.url,'http://localhost').pathname;
  if(path==='/health')return json({ok:true,downloads:downloads.enabled,converter:converter.enabled,fileHosting:true});
- if((path.startsWith('/api/downloads')||path.startsWith('/api/files')||path.startsWith('/api/converter'))&&!allowApi(req,env))return json({error:'Cross-origin write is not allowed.'},403);
+ if((path.startsWith('/api/downloads')||path.startsWith('/api/files')||path.startsWith('/api/converter')||path.startsWith('/api/presence'))&&!allowApi(req,env))return json({error:'Cross-origin write is not allowed.'},403);
  if(path==='/api/files/status'&&req.method==='GET')return json(uploadRemoved());
  if(path.startsWith('/api/files')||path==='/api/internal/cleanup')return json({error:uploadRemoved().reason},410);
  const ip=req.socket.remoteAddress,now=Date.now();let b=buckets.get(ip);if(!b||now-b.start>60000){b={start:now,count:0};buckets.set(ip,b)}
  if(path.startsWith('/api/')&&++b.count>180){res.setHeader('retry-after','60');return json({error:'Please wait before trying again.'},429)}
+ if(path.startsWith('/api/presence'))return await presence.handle(req,res,path);
  if(path.startsWith('/api/downloads'))return await downloads.handle(req,res,path);
  if(path.startsWith('/api/converter'))return await converter.handle(req,res,path);
  if(req.method!=='GET')return json({error:'Method not allowed'},405);
