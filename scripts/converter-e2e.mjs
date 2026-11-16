@@ -54,6 +54,30 @@ try{
  assert.equal(full.job.sourceMetadata.durationSeconds,19);
  console.log('SECOND_CC_YOUTUBE_LINK_OK',JSON.stringify({bytes:full.bytes.length,durationSeconds:19,source:'Wikimedia Commons'}));
 
+ const found=await request('/api/converter/discover?url='+encodeURIComponent('https://youtu.be/jNQXAC9IVRw'));
+ assert.equal(found.r.status,200,JSON.stringify(found.data));
+ assert.ok(found.data.alternatives?.length>=1,'Expected the real Commons catalogue to return an approved video');
+ const candidate=found.data.alternatives.find(x=>/Me at the zoo/i.test(x.title));
+ assert.ok(candidate,'Expected a separately hosted Me at the zoo file with valid CC attribution');
+ const forged=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({candidateId:'fake-candidate',output:'MP4'})});
+ assert.equal(forged.r.status,400,'Forged candidate tokens must fail');
+ const started=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({candidateId:candidate.id,output:'MP4'})});
+ assert.equal(started.r.status,202,JSON.stringify(started.data));
+ let selected=started.data;
+ for(let n=0;n<210&&selected.state==='processing';n++){
+  await sleep(400);
+  const x=await request('/api/converter/'+selected.id);selected=x.data;
+ }
+ assert.equal(selected.state,'ready',JSON.stringify(selected));
+ assert.equal(selected.sourceMetadata?.discovered,true);
+ assert.equal(selected.sourceMetadata?.alternateVersion,true);
+ const output=await fetch(base+selected.downloadUrl);
+ assert.equal(output.status,200);
+ const bytes=new Uint8Array(await output.arrayBuffer());
+ assert.equal(bytes.length,selected.bytes);
+ assert.equal(String.fromCharCode(...bytes.slice(4,8)),'ftyp');
+ console.log('AUTO_DISCOVERED_LICENSED_MP4_OK',JSON.stringify({bytes:bytes.length,title:candidate.title,license:candidate.license,attribution:true}));
+
 
 }catch(e){console.error('OWN_CONVERTER_TEST_FAILED',e?.stack||String(e));console.error('SERVER_STDERR',stderr);process.exitCode=1}
 finally{server.kill('SIGTERM')}
