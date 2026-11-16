@@ -89,6 +89,7 @@ function App(){
  const [toast,setToast]=useState('');
  const [tick,setTick]=useState(Date.now());
  const notifyTimer=useRef(null);
+ const fallbackChecked=useRef(null);
  const searchAbort=useRef(null);
  const inputRef=useRef(null);
  const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
@@ -114,6 +115,12 @@ function App(){
   return()=>{alive=false;clearInterval(interval)}
  },[job?.id,job?.state,job?.engine]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
+ useEffect(()=>{
+  if(job?.state!=='failed'||job.engine==='converter'||!isYouTube(url)||!/blocked|rate.limit|429|too many requests|sign.in|login/i.test(job.error||''))return;
+  if(fallbackChecked.current===job.id)return;
+  fallbackChecked.current=job.id;
+  void openLicensedFallback(url);
+ },[job?.id,job?.state,job?.error,url]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
@@ -129,23 +136,34 @@ function App(){
   const link=url.trim();
   if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
   if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
-  if(youtubeUnavailable){setFormError('YouTube downloads are temporarily unavailable. Try again later.');return}
+  if(youtubeUnavailable){
+   setFormError('YouTube is blocking direct downloads from this server. Checking separately hosted licensed alternatives instead.');
+   await openLicensedFallback(link);
+   return;
+  }
   if(busy)return;
   setBusy(true);setFormError('');setJob(null);
   try{
    const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container})});
    const data=await r.json();
-   if(!r.ok)throw Error(data.error||'Could not start download.');
+   if(!r.ok){
+    if(isYouTube(link)&&(data.code==='SOURCE_RATE_LIMITED'||r.status===429&&/YouTube/i.test(data.error||''))){
+     setFormError('YouTube rate-limited this server. Checking licensed alternate sources, which may be different versions.');
+     await openLicensedFallback(link);
+     return;
+    }
+    throw Error(data.error||'Could not start download.');
+   }
    setJob(data);
    if(data.state==='ready')showToast('Your file is ready.')
   }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
   finally{setBusy(false)}
  }
- async function findAlternatives(){
+ async function findAlternativesFor(sourceLink){
   if(discoverBusy)return;
-  const link=convertUrl.trim();
+  const link=String(sourceLink||'').trim();
   if(!isYouTube(link)){setConvertError('Enter a YouTube video link to search for licensed alternatives.');return}
-  setDiscoverBusy(true);setConvertError('');setAlternatives([]);setAlternativesNotice('');
+  setConvertUrl(link);setDiscoverBusy(true);setConvertError('');setAlternatives([]);setAlternativesNotice('');
   try{
    const r=await fetch('/api/converter/discover?url='+encodeURIComponent(link));
    const data=await r.json();
@@ -154,6 +172,15 @@ function App(){
    setAlternativesNotice(data.notice||'');
   }catch(error){setConvertError(String(error?.message||'Licensed source search failed.'))}
   finally{setDiscoverBusy(false)}
+ }
+ function findAlternatives(){return findAlternativesFor(convertUrl)}
+ async function openLicensedFallback(link){
+  const urlToCheck=String(link||'').trim();
+  setConvertUrl(urlToCheck);
+  setConvertFormat(mode==='Audio only'?'MP3':'MP4');
+  const panel=document.getElementById('vyrnivo-converter');
+  if(panel){panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'center'})}
+  await findAlternativesFor(urlToCheck);
  }
  async function convertAlternative(candidateId){
   if(convertBusy)return;
@@ -231,20 +258,16 @@ function App(){
       </div>
       <div className="form-actions">
        <button className={'options-btn '+(more?'is-open':'')} type="button" aria-expanded={more} aria-controls="download-options" onClick={()=>setMore(v=>!v)}><Icon name="tune" size={18}/> {mode==='Audio only'?container:quality} <span aria-hidden="true">{more?'−':'+'}</span></button>
-       <button type="submit" className="cta" disabled={busy||status?.enabled===false||youtubeUnavailable}>{busy?'Starting…':youtubeUnavailable?'Temporarily unavailable':'Download'}<Icon name="arrow" size={19}/></button>
+       <button type="submit" className="cta" disabled={busy||status?.enabled===false}>{busy?'Starting…':youtubeUnavailable?'Find licensed sources':'Download'}<Icon name="arrow" size={19}/></button>
       </div>
       {more&&<div className="advanced" id="download-options">
        {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
        <label>File type<select value={container} onChange={e=>setContainer(e.target.value)}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>}
      </form>
-     {isYouTube(url)&&<button type="button" className="converter-sample" onClick={()=>{
-      setConvertUrl(url.trim());setAlternatives([]);setAlternativesNotice('');setConvertError('');
-      const panel=document.getElementById('vyrnivo-converter');
-      if(panel){panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'center'})}
-     }}>Search licensed alternatives for this YouTube link <Icon name="arrow" size={14}/></button>}
+     {isYouTube(url)&&<button type="button" className="converter-sample" disabled={discoverBusy} onClick={()=>void openLicensedFallback(url.trim())}>Search licensed alternatives for this YouTube link <Icon name="arrow" size={14}/></button>}
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
-     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
+     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube is rate-limiting this server. You can search for separately hosted licensed alternatives below; they may not be the original upload.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
