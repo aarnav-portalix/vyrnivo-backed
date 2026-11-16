@@ -1,17 +1,17 @@
 // Keyless, best-effort search of publicly indexed Instagram Reel pages.
 // This never claims access to Instagram's private search API.
 const cache=new Map();
-const decode=s=>s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&#(\\d+);/g,(_,n)=>String.fromCodePoint(Number(n)));
-const getReel=url=>{try{const u=new URL(decode(url.trim()));const id=u.pathname.match(/^\\/reel\\/([A-Za-z0-9_-]{6,30})\\/?$/)?.[1];return u.protocol==='https:'&&['instagram.com','www.instagram.com'].includes(u.hostname)&&id?{id,url:'https://www.instagram.com/reel/'+id+'/'}:null}catch{return null}};
+const decode=s=>s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)));
+const getReel=url=>{try{const u=new URL(decode(url.trim()));const id=u.pathname.match(/^\/reel\/([A-Za-z0-9_-]{6,30})\/?$/)?.[1];return u.protocol==='https:'&&['instagram.com','www.instagram.com'].includes(u.hostname)&&id?{id,url:'https://www.instagram.com/reel/'+id+'/'}:null}catch{return null}};
 export function parseIndexRss(xml){
  const items=[],seen=new Set();
- for(const entry of xml.matchAll(/<item\\b[^>]*>([\\s\\S]*?)<\\/item>/gi)){
-  const link=entry[1].match(/<link>([\\s\\S]*?)<\\/link>/i)?.[1]||'';
+ for(const entry of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)){
+  const link=entry[1].match(/<link>([\s\S]*?)<\/link>/i)?.[1]||'';
   const m=getReel(link);
   if(!m||seen.has(m.id))continue;
   seen.add(m.id);
-  const raw=entry[1].match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1]||'Indexed public Reel';
-  items.push({...m,kind:'instagram',title:decode(raw.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g,'$1')).slice(0,180),creator:'Public Reel'});
+  const raw=entry[1].match(/<title>([\s\S]*?)<\/title>/i)?.[1]||'Indexed public Reel';
+  items.push({...m,kind:'instagram',title:decode(raw.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1')).slice(0,180),creator:'Public Reel'});
   if(items.length===12)break;
  }
  return items;
