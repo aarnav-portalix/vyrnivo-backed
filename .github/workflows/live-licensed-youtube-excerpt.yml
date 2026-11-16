@@ -1,0 +1,17 @@
+name: Vyrnivo Licensed YouTube Excerpt Production Test
+on:
+  push:
+    branches: [test/live-licensed-youtube-excerpt]
+    paths: [.github/workflows/live-licensed-youtube-excerpt.yml, scripts/live-licensed-youtube-excerpt.mjs]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify a real MP4 from Vyrnivo's live Render URL
+        run: node scripts/live-licensed-youtube-excerpt.mjs
