@@ -22,6 +22,12 @@ for(let tries=0;tries<45;tries++){
 assert.equal(status?.enabled,true,'Downloader should be online');
 assert.equal(status?.freeFallbackEnabled,true,'New cloud fallback must be deployed');
 console.log('BACKUP_DEPLOYED',{youtube:status.sourceAvailability?.youtube,backupRetryAt:status.backupRetryAt});
+const check=await getJson('/api/security/status');
+assert.equal(check.status,200,'Human verification configuration must be available');
+if(check.data.enabled){
+ console.log('LIVE_MEDIA_CHECK_SKIPPED: Turnstile is enabled; automated CI downloads cannot solve human verification.');
+ process.exit(0);
+}
 
 const input={url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',mode:'Video + audio',quality:'720p',container:'MP4'};
 let started;
