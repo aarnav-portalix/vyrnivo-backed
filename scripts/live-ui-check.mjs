@@ -16,6 +16,18 @@ assert.match(icon,/linearGradient/);
 assert.match(js,/Frequently asked questions/);
 assert.match(js,/Does YouTube downloading always work/);
 assert.match(css,/\.faq-item/);
+for(const label of ['Our Engine','Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice']){
+ assert.ok(js.includes(label),'Live app is missing '+label);
+}
+assert.doesNotMatch(js,/Vyrnivo \\/ yt-dlp|WebDownloader/, 'Public bundle should not reveal downloader implementation');
+assert.match(css,/\\.legal-center/);
+assert.match(css,/\\.discover-hub/);
+const engines=JSON.parse(await get('/api/downloads/status'));
+assert.equal(engines.enabled,true);
+const presence=JSON.parse(await get('/api/presence/status'));
+assert.equal(presence.approximate,true);
+assert.equal(typeof presence.online,'number');
+
 assert.match(css,/backdrop-filter/);
 
 assert.match(js,/YouTube/);
@@ -31,4 +43,4 @@ const search=await fetch(base+'/api/search/instagram?q='+encodeURIComponent('rob
 assert.equal(search.status,200);
 const data=await search.json();
 assert.ok(Array.isArray(data.items),'Instagram results must be an array');
-console.log('LIVE_UI_OK',JSON.stringify({threeTabs:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,instagramResults:data.items.length}));
+console.log('LIVE_UI_OK',JSON.stringify({fourTabs:true,privacyAndTerms:true,privateEngineLabels:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,instagramResults:data.items.length}));
