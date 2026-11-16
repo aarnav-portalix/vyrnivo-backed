@@ -52,15 +52,3 @@ const denied=await call('/api/files/upload',{
 });
 assert.equal(denied.status,403,'Cross-origin uploads must be refused');
 console.log('LIVE SMOKE PASSED: web page, health, API, temporary upload, exact-byte download and cross-origin protection.');
-));
-const fetched=await call(job.url);
-assert.equal(fetched.status,200);
-const received=Buffer.from(await fetched.arrayBuffer());
-assert.equal(hash(received),hash(payload),'Returned bytes must match exactly');
-const denied=await call('/api/files/upload',{
- method:'POST',
- headers:{Origin:'https://untrusted.invalid','Content-Type':'audio/wav','X-File-Name':'not-allowed.wav'},
- body:payload
-});
-assert.equal(denied.status,403,'Cross-origin uploads must be refused');
-console.log('LIVE SMOKE PASSED: web page, health, API, temporary upload, exact-byte download and cross-origin protection.');
