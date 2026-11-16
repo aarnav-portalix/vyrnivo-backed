@@ -9,6 +9,15 @@ const html=await get('/');
 assert.match(html,/app\.js/,'Frontend bundle should load');
 const js=await get('/app.js');
 const css=await get('/app.css');
+const icon=await get('/favicon.svg');
+assert.match(html,/rel="icon"[^>]*href="\/favicon.svg"/);
+assert.match(icon,/viewBox="0 0 64 64"/);
+assert.match(icon,/linearGradient/);
+assert.match(js,/Frequently asked questions/);
+assert.match(js,/Does YouTube downloading always work/);
+assert.match(css,/\.faq-item/);
+assert.match(css,/backdrop-filter/);
+
 assert.match(js,/YouTube/);
 assert.match(js,/Instagram/);
 assert.match(js,/Download/);
@@ -22,4 +31,4 @@ const search=await fetch(base+'/api/search/instagram?q='+encodeURIComponent('rob
 assert.equal(search.status,200);
 const data=await search.json();
 assert.ok(Array.isArray(data.items),'Instagram results must be an array');
-console.log('LIVE_UI_OK',JSON.stringify({threeTabs:true,unifiedInstagram:true,responsiveCSS:true,instagramResults:data.items.length}));
+console.log('LIVE_UI_OK',JSON.stringify({threeTabs:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,instagramResults:data.items.length}));
