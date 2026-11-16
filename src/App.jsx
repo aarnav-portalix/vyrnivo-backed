@@ -123,7 +123,9 @@ function App(){
    setUrl(clip);setFormError('');inputRef.current?.focus()
   }catch{showToast('Tap the link field and use Paste.')}
  }
- const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick;
+ const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&container==='MP3');
+ const freeBackupReady=status?.freeFallbackEnabled&&freeBackupCompatible&&Number(status?.backupRetryAt||0)<=tick;
+ const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick&&!freeBackupReady;
  async function startDownload(e){
   e?.preventDefault?.();
   const link=url.trim();

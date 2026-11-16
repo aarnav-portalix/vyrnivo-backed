@@ -10,5 +10,7 @@ services:
         value: 10000
       - key: DOWNLOADS_ENABLED
         value: true
+      - key: FREE_YOUTUBE_BACKUP
+        value: true
       - key: DOWNLOAD_API_TOKEN
         generateValue: true
