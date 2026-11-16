@@ -1,7 +1,7 @@
 name: Vyrnivo Own Converter Checks
 on:
   push:
-    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot]
+    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot, feat/second-licensed-youtube-full-video]
     paths:
       - hosting/converter.mjs
       - hosting/licensed-youtube.mjs
