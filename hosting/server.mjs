@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {createDownloads} from './downloads.mjs';
+import {allowApi,allowFileUpload} from './access.mjs';
 import {readFile} from 'node:fs/promises';
 import worker from '../dist/server/index.js';
 import {FileStore,providers} from './files.mjs';
@@ -15,7 +16,7 @@ const server=http.createServer(async(req,res)=>{
  try{
  const path=new URL(req.url,'http://localhost').pathname;
  if(path==='/health')return json({ok:true,downloads:downloads.enabled,fileHosting:!!files});
- if(path.startsWith('/api/downloads')||path.startsWith('/api/files')){const trusted=env.DOWNLOAD_API_TOKEN&&req.headers.authorization==='Bearer '+env.DOWNLOAD_API_TOKEN;if(env.DOWNLOAD_API_TOKEN&&!trusted)return json({error:'Unauthorized'},401);if(!env.DOWNLOAD_API_TOKEN&&req.method==='POST'&&req.headers.origin!==env.APP_ORIGIN)return json({error:'Origin not allowed'},403)}
+ if((path.startsWith('/api/downloads')||path.startsWith('/api/files'))&&!allowApi(req,env))return json({error:'Cross-origin write is not allowed.'},403);
  if(files&&path==='/api/files/status'&&req.method==='GET')return json(status());
  if(path==='/api/internal/cleanup'&&req.method==='POST'){
   if(!files||!env.CLEANUP_TOKEN||req.headers.authorization!=='Bearer '+env.CLEANUP_TOKEN)return json({error:'Unauthorized'},401);
@@ -27,7 +28,7 @@ const server=http.createServer(async(req,res)=>{
  if(path.startsWith('/api/downloads'))return await downloads.handle(req,res,path);
  if(path==='/api/files/upload'&&req.method==='POST'){
   if(!files)return json({error:status().reason},503);
-  if(req.headers.origin!==env.APP_ORIGIN&&!(env.DOWNLOAD_API_TOKEN&&req.headers.authorization==='Bearer '+env.DOWNLOAD_API_TOKEN))return json({error:'Origin not allowed'},403);
+  if(!allowFileUpload(req,env))return json({error:'Origin not allowed'},403);
   if(uploading)return json({error:'An upload is in progress. Try again shortly.'},429);
   if(!Number(req.headers['content-length'])||Number(req.headers['content-length'])>status().maxBytes)return json({error:'File must be between 1 byte and 50 MB.'},413);
   const type=String(req.headers['content-type']||'').split(';')[0];if(!/^(video|audio)\//.test(type))return json({error:'Choose an audio or video file.'},415);
