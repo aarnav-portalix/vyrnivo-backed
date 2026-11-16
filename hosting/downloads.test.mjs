@@ -104,3 +104,50 @@ test('duplicate requests share a processing job; upstream 429 aborts early and e
   assert.equal(calls,1);
  }finally{m.close()}
 });
+
+test('blocked Render YouTube extractor falls back to actual free API media bytes; next request skips known blocked source',async()=>{
+ let localCalls=0,remoteCalls=0,result;
+ const bytes=Buffer.alloc(512,0x29);
+ const manager=await createDownloads({
+  enabled:true,freeFallbackEnabled:true,
+  fetchImpl:async()=>{
+   remoteCalls++;
+   return new Response(bytes,{status:200,headers:{'content-type':'video/mp4','content-length':String(bytes.length)}});
+  },
+  spawnProcess:()=>{
+   localCalls++;
+   const proc=new EventEmitter();proc.stdout=new EventEmitter();proc.stderr=new EventEmitter();
+   proc.kill=()=>queueMicrotask(()=>proc.emit('close',1));
+   queueMicrotask(()=>proc.stderr.emit('data',Buffer.from('HTTP Error 429: Too Many Requests')));
+   return proc;
+  }
+ });
+ const request=async(url)=>{
+  const req=Readable.from([Buffer.from(JSON.stringify({...input,url,quality:'720p'}))]);req.method='POST';
+  const res={writeHead(code){this.status=code},setHeader(){},end(text){result=JSON.parse(text)}};
+  await manager.handle(req,res,'/api/downloads');
+  assert.equal(res.status,202);
+  const id=result.id;
+  for(let tries=0;tries<60;tries++){
+   await new Promise(resolve=>setTimeout(resolve,10));
+   await manager.handle({method:'GET'},res,'/api/downloads/'+id);
+   if(result.state!=='processing')break;
+  }
+  assert.equal(result.state,'ready',result.error);
+  assert.equal(result.bytes,bytes.length);
+  assert.equal(result.provider,'WebDownloader (free public API)');
+  assert.equal(result.failureCode,null,'A successful backup must clear local failure');
+ };
+ try{
+  await request(input.url);
+  assert.equal(localCalls,1);
+  assert.equal(remoteCalls,1);
+  await request('https://www.youtube.com/watch?v=BaW_jenozKc');
+  assert.equal(localCalls,1,'known local 429 cooldown should avoid another blocked local attempt');
+  assert.equal(remoteCalls,2);
+  const res={writeHead(){},end(text){result=JSON.parse(text)}};
+  await manager.handle({method:'GET'},res,'/api/downloads/status');
+  assert.equal(result.freeFallbackEnabled,true);
+  assert.equal(result.sourceAvailability.youtube,'backup-available');
+ }finally{manager.close()}
+});
