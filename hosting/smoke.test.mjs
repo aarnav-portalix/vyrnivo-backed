@@ -27,6 +27,28 @@ test('single-host website and source-only downloads API work without revealing b
     assert.equal(r.status,200);
     const status=await r.json();
     assert.equal(status.enabled,true);
+    // The public counter uses real same-origin browser heartbeats.
+    r=await fetch(base+'/api/presence/status');
+    assert.equal(r.status,200);
+    assert.equal((await r.json()).online,0);
+    const visitorId='123e4567-e89b-42d3-a456-426614174010';
+    r=await fetch(base+'/api/presence/heartbeat',{
+      method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
+      body:JSON.stringify({id:visitorId})
+    });
+    assert.equal(r.status,200);
+    assert.equal((await r.json()).online,1);
+    r=await fetch(base+'/api/presence/heartbeat',{
+      method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
+      body:JSON.stringify({id:visitorId})
+    });
+    assert.equal(r.status,200);
+    assert.equal((await r.json()).online,1,'Repeat heartbeat must not inflate online count.');
+    r=await fetch(base+'/api/presence/heartbeat',{
+      method:'POST',headers:{Origin:'https://not-vyrnivo.invalid','Content-Type':'application/json'},
+      body:JSON.stringify({id:visitorId})
+    });
+    assert.equal(r.status,403,'Presence writes are same-origin only.');
     // Manual uploads are retired. Source URLs are the only way to create files.
     r=await fetch(base+'/api/files/status');
     assert.equal(r.status,200);
