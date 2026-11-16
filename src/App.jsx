@@ -1,10 +1,217 @@
-import React,{useState,useEffect,useRef} from 'react';import{createRoot}from'react-dom/client';import './style.css';
-const icons={download:<><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></>,youtube:<><rect x="3" y="5" width="18" height="14" rx="5"/><path d="m10 9 5 3-5 3Z"/></>,instagram:<><rect x="3" y="3" width="18" height="18" rx="6"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,search:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,settings:<><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></>,arrow:<path d="M4 12h16m-6-6 6 6-6 6"/>,chevron:<path d="m6 9 6 6 6-6"/>,check:<path d="m5 12 4 4L19 6"/>,close:<path d="m6 6 12 12M6 18 18 6"/>,clock:<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,music:<><path d="M9 17V5l11-2v12M9 9l11-2"/><circle cx="6" cy="17" r="3"/><circle cx="17" cy="15" r="3"/></>,video:<><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/></>,external:<><path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/></>};function Icon({name,...p}){return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>{icons[name]}</svg>}
-function Button({children,className='',onClick,...p}){return <button className={'glass btn '+className} onClick={e=>{const b=e.currentTarget,r=b.getBoundingClientRect();b.style.setProperty('--x',(e.clientX-r.left)+'px');b.style.setProperty('--y',(e.clientY-r.top)+'px');onClick?.(e)}} {...p}>{children}</button>}
-function Select({label,value,options,onChange}){const[open,setOpen]=useState(false);const ref=useRef(null),trigger=useRef(null);useEffect(()=>{function out(e){if(!ref.current?.contains(e.target))setOpen(false)}document.addEventListener('pointerdown',out);return()=>document.removeEventListener('pointerdown',out)},[]);return <div className={'select '+(open?'open':'')} ref={ref}><span className="fieldlabel">{label}</span><button ref={trigger} className="glass selectbutton" aria-haspopup="menu" aria-expanded={open} onClick={()=>setOpen(!open)} onKeyDown={e=>{if(e.key==='Escape')setOpen(false);if(e.key==='ArrowDown'){e.preventDefault();setOpen(true);setTimeout(()=>ref.current.querySelector('[role=menuitemradio]')?.focus(),0)}}}>{value}<Icon name="chevron"/></button>{open&&<div className="glass dropdown" role="menu" aria-label={label} onKeyDown={e=>{const items=[...e.currentTarget.querySelectorAll('button')],i=items.indexOf(document.activeElement);if(e.key==='Escape'){setOpen(false);trigger.current.focus()}if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();items[e.key==='Home'?0:e.key==='End'?items.length-1:(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus()}}}>{options.map(o=><button key={o} role="menuitemradio" aria-checked={value===o} onClick={()=>{onChange(o);setOpen(false);trigger.current.focus()}}>{o}{value===o&&<Icon name="check"/>}</button>)}</div>}</div>}
-const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}},write=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v))}catch{}};
-let embedLoader;
-function InstagramEmbed({url}){useEffect(()=>{let active=true;if(!embedLoader)embedLoader=new Promise((resolve,reject)=>{if(window.instgrm?.Embeds){resolve();return}const script=document.createElement('script');script.src='https://www.instagram.com/embed.js';script.async=true;script.onload=resolve;script.onerror=()=>{script.remove();embedLoader=null;reject(Error('Embed unavailable'))};document.body.appendChild(script)});embedLoader.then(()=>{if(active)window.instgrm?.Embeds?.process()}).catch(()=>{});return()=>{active=false}},[url]);return <div style={{maxHeight:'65vh',overflow:'auto'}}><blockquote key={url} className="instagram-media" data-instgrm-permalink={url} data-instgrm-version="14"><a href={url} target="_blank" rel="noreferrer">View this Reel on Instagram ↗</a></blockquote></div>}
-function DownloadProgress({initial,onFailure}){const[job,setJob]=useState(initial);useEffect(()=>{setJob(initial)},[initial]);useEffect(()=>{if(job?.state!=='ready'||!job.expiresAt)return;const t=setTimeout(()=>setJob(j=>j?.id===job.id?{...j,state:'expired',downloadUrl:null}:j),Math.max(0,job.expiresAt-Date.now()));return()=>clearTimeout(t)},[job?.id,job?.state,job?.expiresAt]);useEffect(()=>{if(job?.state!=='processing')return;let active=true,failures=0;const t=setInterval(async()=>{try{const r=await fetch('/api/downloads/'+job.id);const v=await r.json();if(active){failures=0;if(r.ok){setJob(v);if(v.state==='failed')onFailure?.()}else{setJob({...job,state:'failed',error:v.error||'Could not check this download.'});onFailure?.()}}}catch{if(active&&++failures>=3)setJob({...job,state:'failed',error:'Lost connection to the download server. Your request may still be processing; try again when it is available.'})}},2500);return()=>{active=false;clearInterval(t)}},[job?.id,job?.state]);if(!job)return null;return <div className="glass resultmessage" role="status">{job.state==='processing'?<p>Retrieving and preparing your media… Vyrnivo creates a temporary download link automatically when the source permits retrieval.</p>:job.state==='ready'?<><p>Your file is ready · {(job.bytes/1048576).toFixed(1)} MB</p><a className="glass btn primary" href={job.downloadUrl} download>Download file ↓</a><Button onClick={()=>navigator.clipboard?.writeText(location.origin+job.downloadUrl).catch(()=>{})}>Copy temporary link</Button><p>Automatically hosted. Available until {new Date(job.expiresAt).toLocaleTimeString()} (up to 10 minutes).</p></>:<p>{job.error||'This download has expired. Submit the link again.'}</p>}</div>}
-function App(){const[backendStatus,setBackendStatus]=useState(null),[searchReady,setSearchReady]=useState(false),[downloadJob,setDownloadJob]=useState(()=>read('dw3lastJob',null)),[submitting,setSubmitting]=useState(false);function checkBackend(){setBackendStatus(null);fetch("/api/downloads/status").then(async r=>{const v=await r.json();return r.ok?v:{enabled:false,reason:v.error||v.reason||"Download server unavailable."}}).then(setBackendStatus).catch(()=>setBackendStatus({enabled:false,reason:"Download server unavailable."}))}useEffect(()=>write('dw3lastJob',downloadJob),[downloadJob]);useEffect(()=>{checkBackend();fetch("/api/search/status").then(r=>r.json()).then(v=>setSearchReady(v.instagram)).catch(()=>{})},[]);const[page,setPage]=useState(location.hash.slice(1)||'download'),[prefs,setPrefs]=useState(()=>read('dw3prefs',{quality:'720p',format:'Video + audio'})),[mode,setMode]=useState(prefs.format),[quality,setQuality]=useState(prefs.quality),[container,setContainer]=useState(prefs.format==='Audio only'?'Original audio':'MP4'),[url,setUrl]=useState(''),[query,setQuery]=useState(''),[igtype,setIgtype]=useState('Keywords'),[advanced,setAdvanced]=useState(false),[queue,setQueue]=useState(()=>read('dw3queue',[])),[history,setHistory]=useState(()=>read('dw3history',[])),[notice,setNotice]=useState(''),[modal,setModal]=useState(false),[results,setResults]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[resultQuery,setResultQuery]=useState(''),[topic,setTopic]=useState(null),[searchNotice,setSearchNotice]=useState(''),[watch,setWatch]=useState(null);const timer=useRef(null);const pages=['download','youtube','instagram','library','settings'];const current=pages.includes(page)?page:'download';useEffect(()=>{const h=()=>{setPage(location.hash.slice(1)||'download');setQuery('')};window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h)},[]);useEffect(()=>write('dw3prefs',prefs),[prefs]);useEffect(()=>write('dw3queue',queue),[queue]);useEffect(()=>write('dw3history',history),[history]);useEffect(()=>{if(!modal)return;const close=e=>{if(e.key==='Escape')setModal(false)};document.addEventListener('keydown',close);return()=>document.removeEventListener('keydown',close)},[modal]);function notify(s){setNotice(s);clearTimeout(timer.current);timer.current=setTimeout(()=>setNotice(''),4000)}function nav(p){setTopic(null);setSearchNotice('');setResults([]);setError('');setPage(p);setQuery('');setAdvanced(false);location.hash=p;window.scrollTo({top:0,behavior:'smooth'})}function setFormat(v){setMode(v);setQuality('Best available');setContainer(v==='Audio only'?'Original audio':'MP4')}async function add(){if(!backendStatus?.enabled){notify(backendStatus?.reason||'Download server is not connected.');return}setSubmitting(true);setDownloadJob(null);try{const r=await fetch('/api/downloads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,mode,quality,container})});const d=await r.json();if(!r.ok){checkBackend();throw Error(d.error||'Could not start download.')}setDownloadJob(d);notify(d.state==='ready'?'A previously prepared download is still available.':'Preparing your temporary download link…')}catch(e){notify(e.message)}finally{setSubmitting(false)}}const isSearch=['youtube','instagram'].includes(current),isIG=current==='instagram';function searchURL(q){if(!isIG)return 'https://www.youtube.com/results?search_query='+encodeURIComponent(q);if(igtype==='Creator')return 'https://www.instagram.com/'+encodeURIComponent(q.replace(/^@/,'').replaceAll(' ',''))+'/';if(igtype==='Hashtag')return 'https://www.instagram.com/explore/tags/'+encodeURIComponent(q.replace(/^#/, '').replaceAll(' ',''))+'/';return 'https://www.instagram.com/explore/search/keyword/?q='+encodeURIComponent(q)}async function search(e){e.preventDefault();const q=query.trim();if(!q){notify('Type a search first.');return}if(isIG&&!searchReady){window.open('https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+q),'_blank','noopener,noreferrer');return}if(isIG&&igtype==='Creator'&&!/^[\w.]{1,30}$/.test(q.replace(/^@/,''))){notify('Enter an Instagram username, without spaces.');return}if(true){setLoading(true);setError('');setTopic(null);setSearchNotice('');setResults([]);setResultQuery(q);try{const r=await fetch('/api/search/'+(isIG?'instagram':'youtube')+'?q='+encodeURIComponent(q));const data=await r.json();if(!r.ok)throw Error(data.error||'Search is unavailable.');setResults(data.items||[]);setTopic(data.topic?{...data.topic,url:data.sourceURL}:null);setSearchNotice(data.notice||'');}catch(err){setError(err.message||'Unable to load search results.')}finally{setLoading(false)}setHistory(h=>[{q,platform:current},...h.filter(x=>x.q!==q||x.platform!==current)].slice(0,8));return;}window.open(searchURL(q),'_blank','noopener,noreferrer');setHistory(h=>[{q,platform:current},...h.filter(x=>x.q!==q||x.platform!==current)].slice(0,8));notify('Opened '+(isIG?'Instagram':'YouTube')+' in a new tab.')}return <><div className="ambience" aria-hidden="true"><div className="orb one"/><div className="orb two"/><div className="orb three"/></div><header><a className="brand" href="#download" onClick={()=>nav('download')}><span className="glass logomark"><Icon name="download"/></span>vyrnivo<span className="branddot">.</span></a><nav className="glass navigation" aria-label="Main navigation">{[['download','download','Download'],['youtube','youtube','YouTube'],['instagram','instagram','Instagram']].map(([p,i,t])=><Button key={p} className={current===p?'selected':''} onClick={()=>nav(p)} aria-current={current===p?'page':undefined}><Icon name={i}/><span>{t}</span></Button>)}</nav><div className="headerend"><Button className={'iconbutton '+(current==='library'?'selected':'')} aria-label="My queue" onClick={()=>nav('library')}><Icon name="clock"/>{queue.length>0&&<span className="badge">{queue.length}</span>}</Button><Button className={'iconbutton '+(current==='settings'?'selected':'')} aria-label="Preferences" onClick={()=>nav('settings')}><Icon name="settings"/></Button></div></header><main key={current} className="page"><div className="intro"><div className="eyebrow"><span/> {isSearch?'FIND YOUR NEXT FAVORITE':current==='library'?'READY WHEN YOU ARE':current==='settings'?'MAKE IT FEEL LIKE YOU':'A LITTLE LESS FRICTION'}</div><h1>{isSearch?<>{isIG?'Instagram':'YouTube'}.<br/><em>Worth a replay.</em></>:current==='library'?<>Your queue.<br/><em>All in one place.</em></>:current==='settings'?<>Your defaults.<br/><em>Your flow.</em></>:<>Keep the moment.<br/><em>Skip the noise.</em></>}</h1><p>{isSearch?(isIG?(searchReady?'Search indexed public Reels.':'Find public Reels through web search, or paste a Reel link to download.'):'Search real videos. Watch without leaving Vyrnivo.'):current==='library'?'Saved requests stay on this device.':current==='settings'?'A few small choices, remembered for next time.':'One link. Your format. Nothing in the way.'}</p></div>{current==='download'&&<><section className="glass workspace"><div className="inputwrap"><Icon name="download"/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Paste a YouTube or Instagram link" aria-label="Video link" type="url" onKeyDown={e=>{if(e.key==='Enter')add()}}/>{url&&<Button className="iconbutton clear" aria-label="Clear link" onClick={()=>setUrl('')}><Icon name="close"/></Button>}</div><div className="glass segmented" aria-label="Download format">{['Video + audio','Audio only','Video only'].map((m,i)=><Button key={m} className={mode===m?'selected':''} onClick={()=>setFormat(m)} aria-pressed={mode===m}><Icon name={i===1?'music':'video'}/>{m}</Button>)}</div><div className="actionrow"><Button className="optionsbtn" aria-expanded={advanced} onClick={()=>setAdvanced(!advanced)}><span>{quality}</span><Icon name="chevron" className={advanced?'rotate':''}/></Button><Button className="primary" disabled={!backendStatus?.enabled||submitting||(backendStatus?.youtubeRetryAt>Date.now()&&/(?:youtube\.com|youtu\.be)/i.test(url))} onClick={add}>{submitting?'Starting…':'Download file'} <Icon name="arrow"/></Button></div>{advanced&&<div className="advanced"><Select label="Quality preference" value={quality} options={mode==='Audio only'?['Best available']:['Best available','2160p · 4K','1440p','1080p','720p']} onChange={setQuality}/><Select label="File type" value={container} options={mode==='Audio only'?['Original audio','MP3','M4A','WAV']:['MP4','WebM','MKV']} onChange={setContainer}/></div>}<p className="statusline"><span className="statusdot"/>{backendStatus?.enabled?(backendStatus.youtubeRetryAt>Date.now()?'Storage online · YouTube is rejecting downloads (HTTP 429). Try later.':'Storage online · YouTube/Instagram retrieval is not guaranteed · 10-minute links'):(backendStatus?.reason||'Checking server…')}</p>{backendStatus&&!backendStatus.enabled&&<Button onClick={checkBackend}>Retry download connection</Button>}{backendStatus?.youtubeRetryAt>Date.now()&&<p role="alert">YouTube has blocked this server temporarily. Repeated attempts or changing formats won't resolve an IP restriction. The download button is paused during this cooldown.</p>}<DownloadProgress initial={downloadJob} onFailure={checkBackend}/></section><p className="statusline">Downloads from supported public links are automatically stored temporarily. The link and file expire after ten minutes. Manual uploads are disabled.</p></>}{isSearch&&<section className="glass workspace searchspace"><form onSubmit={search}>{isIG&&<div className="chips">{["Keywords","Hashtag","Creator"].map(t=><Button key={t} type="button" className={igtype===t?"selected":""} onClick={()=>{setIgtype(t);setResults([]);setResultQuery("");setSearchNotice("")}} aria-pressed={igtype===t}>{t}</Button>)}</div>}<div className="inputwrap"><Icon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} aria-label={(isIG?'Instagram':'YouTube')+' search'} placeholder={isIG?(igtype==='Creator'?'Enter @username':igtype==='Hashtag'?'Enter a hashtag':'What are you looking for?'):'Search videos, music, creators…'}/>{query&&<Button type="button" className="iconbutton clear" aria-label="Clear search" onClick={()=>setQuery('')}><Icon name="close"/></Button>}</div><div className="actionrow">{isIG?<span className="subtle">Public indexed Reels · search coverage varies</span>:<span className="subtle">Real videos. Right here.</span>}<Button type="submit" className="primary" disabled={loading}>{loading?'Searching…':isIG&&!searchReady?'Search web':'Search '+(isIG?'Instagram':'YouTube')}<Icon name="search"/></Button></div></form><p className="statusline">{isIG?(searchReady?'Experimental public Reel discovery · Instagram may restrict search and embeds.':'Opens a web search. In-site Instagram results are not connected.'):'Free experimental search · Availability depends on YouTube.'}</p>{history.filter(x=>x.platform===current).length>0&&<div className="recent"><div className="recenttitle">Recent searches<button onClick={()=>setHistory(history.filter(x=>x.platform!==current))}>Clear</button></div><div className="chips">{history.filter(x=>x.platform===current).map((x,i)=><Button key={i} onClick={()=>setQuery(x.q)}><Icon name="clock"/>{x.q}</Button>)}</div></div>}</section>}{isSearch&&<div className="searchresults" aria-live="polite">{loading&&<div className="glass resultmessage">Searching {isIG?'Instagram topics':'YouTube'}…</div>}{error&&<div className="glass resultmessage"><p>{error}</p><Button onClick={search}>Try again</Button></div>}{isIG&&!loading&&<p className="statusline"><a target="_blank" rel="noreferrer" href={'https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+(resultQuery||query))}>Search indexed Reels on the web ↗</a> {igtype==='Creator'&&resultQuery&&<a target="_blank" rel="noreferrer" href={'https://www.instagram.com/'+encodeURIComponent(resultQuery.replace(/^@/,''))+'/'}>Open creator profile ↗</a>}</p>}{isIG&&topic&&<div className="glass resultmessage"><h3>{topic.title}</h3><p>{searchNotice}</p><a href={topic.url} target="_blank" rel="noreferrer">View topic on Instagram ↗</a>{topic.related?.length>0&&<><p>Related topics from Instagram</p><div className="chips">{topic.related.map(t=><Button key={t} onClick={()=>setQuery(t)}>{t}</Button>)}</div></>}</div>}{isIG&&!loading&&!error&&resultQuery&&results.length===0&&<div className="glass resultmessage"><h3>No verifiable public Reels found</h3><p>{searchNotice||'Instagram did not provide accessible results to this server. This does not mean the Reels do not exist.'}</p><p>Use the indexed web search above or paste the original Reel URL into Download.</p></div>}{results.length>0&&<><div className="resultlabel">{results.length} results for “{resultQuery}”</div><div className="resultgrid">{results.map(v=><article className="glass resultcard" key={v.id}><button className="thumbnail" aria-label={'Watch '+v.title} onClick={()=>setWatch(v)}>{v.kind==='instagram'?<span className="igpreview"><Icon name="instagram" width="40" height="40"/>Public Reel</span>:<img src={v.thumbnail} alt="" loading="lazy"/>}<span>{v.duration||'Play'}</span></button><div className="resultbody"><h3>{v.title}</h3><p>{v.creator}</p><small>{[v.views,v.published].filter(Boolean).join(' · ')}</small><div className="resultactions"><Button onClick={()=>setWatch(v)}>Watch</Button><Button onClick={()=>{setUrl(v.url||'https://www.youtube.com/watch?v='+v.id);nav('download');notify('Video link selected. Check the download connection status.')}}>Select<Icon name="arrow"/></Button></div></div></article>)}</div></>}</div>}{watch&&<div className="modalback" onClick={()=>setWatch(null)}><div className="glass watchmodal" role="dialog" aria-modal="true" aria-label={watch.title} onClick={e=>e.stopPropagation()}><Button className="iconbutton modalclose" aria-label="Close player" onClick={()=>setWatch(null)}><Icon name="close"/></Button><h3>{watch.title}</h3>{watch.kind==='instagram'?<InstagramEmbed url={watch.url}/>:<iframe title={watch.title} src={'https://www.youtube-nocookie.com/embed/'+watch.id} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen/>}<p>Some videos cannot be embedded. <a href={watch.url||'https://www.youtube.com/watch?v='+watch.id} target="_blank" rel="noreferrer">Open original ↗</a></p></div></div>}{current==='library'&&<section className="library"><p className="statusline">Completed downloads are temporarily hosted automatically for ten minutes. No file uploads are needed.</p>{queue.length?queue.map(item=><article key={item.id} className="glass queuecard"><div className="queuelogo"><Icon name={item.url.includes('instagram.com')?'instagram':'youtube'}/></div><div className="queuedetails"><span className="pending">Awaiting connection</span><a href={item.url} target="_blank" rel="noreferrer">{item.url}</a><p>{item.mode} · {item.quality} · {item.container}</p></div><Button className="iconbutton" aria-label="Remove request" onClick={()=>setQueue(queue.filter(x=>x.id!==item.id))}><Icon name="close"/></Button></article>):<div className="glass empty"><Icon name="download" width="36" height="36"/><h2>A little space for something good.</h2><p>Save a video link and your preferred format.</p><Button onClick={()=>nav('download')}>Add your first link<Icon name="arrow"/></Button></div>}{queue.length>0&&<p className="statusline">Requests only · No files have been downloaded.</p>}</section>}{current==='settings'&&<section className="glass workspace"><div className="settingsrow"><div><h3>Default format</h3><p>Start with your favorite.</p></div><Select label="Format" value={prefs.format} options={['Video + audio','Audio only','Video only']} onChange={v=>{setPrefs({...prefs,format:v});setFormat(v);notify('Default format saved.')}}/></div><div className="settingsrow"><div><h3>Default quality</h3><p>Always aim a little higher.</p></div><Select label="Quality" value={prefs.quality} options={['Best available','1080p','720p']} onChange={v=>{setPrefs({...prefs,quality:v});setQuality(v);notify('Default quality saved.')}}/></div><div className="settingsrow"><div><h3>Reset preferences</h3><p>Saved only in this browser.</p></div><Button onClick={()=>{setPrefs({quality:'Best available',format:'Video + audio'});setFormat('Video + audio');notify('Preferences reset.')}}>Reset</Button></div></section>}{current==='download'&&<div className="quietfeatures"><span><Icon name="video"/>Your choice of format</span><span><Icon name="check"/>No added watermark</span><span><Icon name="clock"/>10-minute hosting workflow</span></div>}</main><footer><span>LESS NOISE. MORE REPLAY.</span><button onClick={()=>setModal(true)}>How it works <span>↗</span></button></footer>{notice&&<div className="glass toast" role="status"><Icon name="check"/>{notice}</div>}{modal&&<div className="modalback" onClick={()=>setModal(false)}><div className="glass modal" role="dialog" aria-modal="true" aria-label="How Vyrnivo works" onClick={e=>e.stopPropagation()}><Button className="iconbutton modalclose" aria-label="Close help" autoFocus onClick={()=>setModal(false)} onKeyDown={e=>{if(e.key==='Tab')e.preventDefault()}}><Icon name="close"/></Button><div className="eyebrow">THE SHORT VERSION</div><h2>Find. Choose. Keep.</h2><p>YouTube search shows real results here. Watch a video or select its link. Instagram accepts normal topic searches. Public pages may return related topics without video cards; full Instagram video search is not yet reliable. Embedding depends on Instagram and creator settings.</p><p>Choose a format and start your download when the server is connected. The downloader needs a connected server. When connected, it prepares real files and removes temporary copies after ten minutes. Restarting the server can expire files earlier.</p><p>Available quality depends on the source. Existing watermarks remain. Download content you own or have permission to save.</p></div></div>}</>}
+import React,{useEffect,useRef,useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import './style.css';
+
+const icons={
+ download:<><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></>,
+ youtube:<><rect x="3" y="5" width="18" height="14" rx="5"/><path d="m10 9 5 3-5 3Z"/></>,
+ instagram:<><rect x="3" y="3" width="18" height="18" rx="6"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,
+ search:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
+ arrow:<path d="M4 12h16m-6-6 6 6-6 6"/>,
+ check:<path d="m5 12 4 4L19 6"/>,
+ close:<path d="m6 6 12 12M6 18 18 6"/>,
+ paste:<><rect x="8" y="5" width="12" height="16" rx="2"/><path d="M11 3h6v4h-6zm-6 6H4v12h11"/></>,
+ copy:<><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></>,
+ play:<path d="m9 6 10 6-10 6z"/>,
+ tune:<><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></>,
+ music:<><path d="M9 17V5l11-2v12M9 9l11-2"/><circle cx="6" cy="17" r="3"/><circle cx="17" cy="15" r="3"/></>,
+ video:<><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/></>,
+ external:<><path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/></>
+};
+function Icon({name,size=19,...props}){return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{icons[name]}</svg>;}
+function saved(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
+function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
+const pages=['download','youtube','instagram'];
+const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
+function friendlyError(message,source){
+ const m=String(message||'');
+ if(/429|rate.limit|blocking this render server|too many requests/i.test(m))return 'YouTube downloads are unavailable right now. Try again later.';
+ if(/403|sign.in|login|blocked|not allow/i.test(m))return 'This video could not be accessed. Try another public link.';
+ if(/processing|busy/i.test(m))return 'Another video is being prepared. Try again shortly.';
+ if(/format|quality/i.test(m))return 'That format is unavailable for this video. Try MP4 at 720p.';
+ if(/expired/i.test(m))return 'This download link has expired. Start again.';
+ if(m.length>150)return 'Could not prepare this video. Try a different link.';
+ return m||('Could not download this '+source+' video.');
+}
+function Preview({item,onClose}){
+ useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
+ useEffect(()=>{
+  if(item.kind!=='instagram')return;
+  let live=true;
+  const load=()=>{
+   if(window.instgrm?.Embeds?.process){window.instgrm.Embeds.process();return}
+   if(document.querySelector('script[data-vyrnivo-instagram]'))return;
+   const tag=document.createElement('script');tag.src='https://www.instagram.com/embed.js';tag.async=true;tag.dataset.vyrnivoInstagram='yes';tag.onload=()=>{if(live)window.instgrm?.Embeds?.process()};document.body.appendChild(tag)
+  };load();return()=>{live=false}
+ },[item.url,item.kind]);
+ return <div className="overlay" onClick={onClose}><section className="player" role="dialog" aria-modal="true" aria-label={item.title||'Video preview'} onClick={e=>e.stopPropagation()}>
+  <div className="player-header"><h2>{item.title||'Video preview'}</h2><button className="round-btn" aria-label="Close preview" onClick={onClose}><Icon name="close"/></button></div>
+  {item.kind==='instagram'
+   ? <div className="instagram-frame"><blockquote key={item.url} className="instagram-media" data-instgrm-permalink={item.url} data-instgrm-version="14"><a href={item.url} target="_blank" rel="noopener noreferrer">Watch on Instagram</a></blockquote></div>
+   : <iframe title={item.title} src={'https://www.youtube-nocookie.com/embed/'+item.id} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen/>}
+  <a className="player-original" href={item.url||'https://www.youtube.com/watch?v='+item.id} rel="noopener noreferrer" target="_blank">Open original <Icon name="external" size={15}/></a>
+ </section></div>;
+}
+function App(){
+ const initialPage=location.hash.slice(1);
+ const [page,setPage]=useState(pages.includes(initialPage)?initialPage:'download');
+ const [url,setUrl]=useState('');
+ const [mode,setMode]=useState(()=>saved('vyrnivo-mode','Video + audio'));
+ const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
+ const [container,setContainer]=useState('MP4');
+ const [more,setMore]=useState(false);
+ const [status,setStatus]=useState(null);
+ const [job,setJob]=useState(()=>saved('dw3lastJob',null));
+ const [busy,setBusy]=useState(false);
+ const [formError,setFormError]=useState('');
+ const [query,setQuery]=useState('');
+ const [searching,setSearching]=useState(false);
+ const [results,setResults]=useState([]);
+ const [searched,setSearched]=useState('');
+ const [searchError,setSearchError]=useState('');
+ const [searchNote,setSearchNote]=useState('');
+ const [preview,setPreview]=useState(null);
+ const [toast,setToast]=useState('');
+ const [tick,setTick]=useState(Date.now());
+ const notifyTimer=useRef(null);
+ const searchAbort=useRef(null);
+ const inputRef=useRef(null);
+ const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
+ const refreshStatus=async()=>{try{const r=await fetch('/api/downloads/status');const s=await r.json();setStatus(r.ok?s:{enabled:false})}catch{setStatus({enabled:false})}};
+ useEffect(()=>{refreshStatus();const onHash=()=>{const next=location.hash.slice(1);setPage(pages.includes(next)?next:'download')};window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[]);
+ useEffect(()=>persist('vyrnivo-mode',mode),[mode]);
+ useEffect(()=>persist('vyrnivo-quality',quality),[quality]);
+ useEffect(()=>persist('dw3lastJob',job),[job]);
+ useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t)},[]);
+ useEffect(()=>{
+  if(!job?.id||job.state!=='processing')return;
+  let alive=true;let requestInFlight=false;
+  const poll=async()=>{
+   if(requestInFlight||!alive)return;requestInFlight=true;
+   try{
+    const r=await fetch('/api/downloads/'+job.id);
+    const data=await r.json();
+    if(alive){if(r.ok){setJob(data);if(data.state==='failed')refreshStatus()}else setJob(p=>({...p,state:'failed',error:data.error||'Download no longer available.'}))}
+   }catch{if(alive)setFormError('Connection interrupted. You can try again.')}
+   finally{requestInFlight=false}
+  };
+  poll();const interval=setInterval(poll,2400);
+  return()=>{alive=false;clearInterval(interval)}
+ },[job?.id,job?.state]);
+ useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
+ const nav=next=>{if(!pages.includes(next))return;setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+ const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
+ async function pasteLink(){
+  try{
+   const clip=(await navigator.clipboard.readText()).trim();
+   if(!/^https?:\/\//i.test(clip)){showToast('Copy a video link first.');return}
+   setUrl(clip);setFormError('');inputRef.current?.focus()
+  }catch{showToast('Tap the link field and use Paste.')}
+ }
+ const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick;
+ async function startDownload(e){
+  e?.preventDefault?.();
+  const link=url.trim();
+  if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
+  if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
+  if(youtubeUnavailable){setFormError('YouTube downloads are temporarily unavailable. Try again later.');return}
+  if(busy)return;
+  setBusy(true);setFormError('');setJob(null);
+  try{
+   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container})});
+   const data=await r.json();
+   if(!r.ok)throw Error(data.error||'Could not start download.');
+   setJob(data);
+   if(data.state==='ready')showToast('Your file is ready.')
+  }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
+  finally{setBusy(false)}
+ }
+ async function copyLink(){
+  try{await navigator.clipboard.writeText(location.origin+job.downloadUrl);showToast('Link copied!')}
+  catch{showToast('Hold the Download button to copy its link.')}
+ }
+ async function search(e){
+  e?.preventDefault?.();
+  const q=query.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
+  searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;
+  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);
+  try{
+   const r=await fetch('/api/search/'+page+'?q='+encodeURIComponent(q),{signal:controller.signal});
+   const data=await r.json();
+   if(!r.ok)throw Error(data.error||'Search unavailable.');
+   setResults(data.items||[]);setSearchNote(data.notice||'');
+  }catch(e){if(e.name!=='AbortError')setSearchError('Search unavailable. Try again.')}
+  finally{if(searchAbort.current===controller)setSearching(false)}
+ }
+ const chooseResult=item=>{
+  setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
+  setFormError('');setPreview(null);nav('download');
+  showToast('Link added. Choose a format and download.')
+ };
+ const isSearch=page!=='download';
+ const isInstagram=page==='instagram';
+ const seconds=job?.expiresAt?Math.max(0,Math.ceil((job.expiresAt-tick)/1000)):0;
+ const original=job?.error&&isYouTube(url)?url:null;
+ return <div className="app-shell">
+  <div className="ambient" aria-hidden="true"><span/><span/></div>
+  <header className="topbar">
+   <a className="logo" href="#download" onClick={e=>{e.preventDefault();nav('download')}}><span className="logo-icon"><Icon name="download" size={20}/></span>vyrnivo<span className="logo-dot">.</span></a>
+   <nav aria-label="Main navigation" className="tabs">
+    {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='youtube'?'YouTube':'Instagram'}</span></button>)}
+   </nav>
+  </header>
+  <main className="content" id="main-content">
+   <div className="hero">
+    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':'EXPLORE & DISCOVER'}</p>
+    <h1>{page==='download'?<>Save the <em>moment.</em></>:<>Find your <em>next favorite.</em></>}</h1>
+    <p>{page==='download'?'Paste a link. Pick a format. Download.':isInstagram?'Search public Instagram Reels.':'Search YouTube videos and creators.'}</p>
+   </div>
+   {page==='download'?
+    <section className="panel" aria-label="Video downloader">
+     <form onSubmit={startDownload}>
+      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('')}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
+       {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
+      </div>
+      <div className="format-tabs" role="group" aria-label="Download format">
+       {[['Video + audio','Video'],['Audio only','Audio'],['Video only','Video only']].map(([value,label])=><button type="button" key={value} className={'format-tab '+(mode===value?'active':'')} aria-pressed={mode===value} onClick={()=>setDownloadMode(value)}>{label}</button>)}
+      </div>
+      <div className="form-actions">
+       <button className={'options-btn '+(more?'is-open':'')} type="button" aria-expanded={more} aria-controls="download-options" onClick={()=>setMore(v=>!v)}><Icon name="tune" size={18}/> {mode==='Audio only'?container:quality} <span aria-hidden="true">{more?'−':'+'}</span></button>
+       <button type="submit" className="cta" disabled={busy||status?.enabled===false||youtubeUnavailable}>{busy?'Starting…':youtubeUnavailable?'Temporarily unavailable':'Download'}<Icon name="arrow" size={19}/></button>
+      </div>
+      {more&&<div className="advanced" id="download-options">
+       {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
+       <label>File type<select value={container} onChange={e=>setContainer(e.target.value)}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
+      </div>}
+     </form>
+     {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
+     {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
+     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div><strong>Preparing your file</strong><p>This can take a little time.</p></div><div className="loading-track" aria-hidden="true"><span/></div></div>}
+     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>Ready to save</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div></div>}
+     {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
+    </section>
+    : <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
+     <form className="search-panel" onSubmit={search}>
+      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={isInstagram?'Search Reels, topics, hashtags, creators…':'Search videos, creators, music…'} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
+      <button type="submit" className="cta" disabled={searching}>{searching?'Searching…':'Search'} <Icon name="arrow" size={18}/></button>
+     </form>
+     {searchError&&<div className="message error" role="alert">{searchError}</div>}
+     {searching&&<div className="search-loading" role="status"><span className="loading-spinner"/> Searching…</div>}
+     {!searching&&searched&&<div className="result-heading"><span>{results.length?results.length+' results for “'+searched+'”':'Results for “'+searched+'”'}</span>{results.length>0&&<button type="button" onClick={()=>{setResults([]);setSearched('');setQuery('')}}>Clear</button>}</div>}
+     {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={28}/><strong>No results found</strong><p>Try a different search or paste a direct video link.</p>{isInstagram&&<a href={'https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+searched)} target="_blank" rel="noopener noreferrer">Search the web <Icon name="external" size={15}/></a>}</div>}
+     {!!results.length&&<div className="results">
+      {results.map(item=><article className="media-card" key={item.kind+'-'+item.id}>
+       <button className="media-image" type="button" onClick={()=>setPreview(item)} aria-label={'Preview '+item.title}>{item.kind==='instagram'?<span className="reel-art"><Icon name="instagram" size={38}/><small>REEL</small></span>:<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>}<span className="play-bubble"><Icon name="play" size={18}/></span></button>
+       <div className="media-content"><h2 title={item.title}>{item.title}</h2><p>{item.creator||'Public video'}</p><div className="media-actions"><button type="button" className="outline-btn" onClick={()=>setPreview(item)}>Preview</button><button type="button" className="mini-primary" onClick={()=>chooseResult(item)}>Use link <Icon name="arrow" size={16}/></button></div></div>
+      </article>)}
+     </div>}
+    </section>}
+  </main>
+  <footer className="footer"><span>vyrnivo © 2026</span><span>Only save content you have permission to download.</span></footer>
+  {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
+  {toast&&<div className="toast" role="status"><Icon name="check" size={18}/>{toast}</div>}
+ </div>
+}
 createRoot(document.getElementById('root')).render(<App/>);
