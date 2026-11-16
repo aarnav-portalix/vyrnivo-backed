@@ -11,6 +11,13 @@ test('unknown Instagram Reel duration is allowed but known long videos remain li
  const args=argumentsFor({...input,url:'https://www.instagram.com/reel/ABCdef1234/'},'/tmp/reel');
  assert.equal(args[args.indexOf('--match-filter')+1],'duration <=? 1800');
 });
+test('Instagram MP4 selection permits unreported resolution and a generic best fallback',()=>{
+ const url='https://www.instagram.com/reel/DdRlhjluRFw/';
+ const args=argumentsFor({...input,url,quality:'720p'},'/tmp/reels');
+ const format=args[args.indexOf('-f')+1];
+ assert.equal(format,'best[height<=?720]/bestvideo*[height<=?720]+bestaudio/best');
+ assert.equal(args.includes('--remux-video'),true);
+});
 test('fast 720p progressive MP4 is preferred when available',()=>{
  const a=argumentsFor({...input,quality:'720p'},'/tmp/fast');
  const f=a[a.indexOf('-f')+1];
