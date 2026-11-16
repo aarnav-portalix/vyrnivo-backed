@@ -1,0 +1,22 @@
+name: Piped and Invidious alternative engine probe
+on:
+  push:
+    branches:
+      - experiment/test-free-cloud-youtube-access
+    paths:
+      - scripts/probe-piped-invidious.mjs
+      - .github/workflows/probe-piped-invidious.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe only public API video and CC-BY media bytes
+        run: node scripts/probe-piped-invidious.mjs
