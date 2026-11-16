@@ -35,7 +35,7 @@ try{
  await ready();
  const deny=await request('/api/converter',{method:'POST',headers:{Origin:'https://another-site.test','Content-Type':'application/json'},body:'{}'});
  assert.equal(deny.r.status,403,'Cross-origin writes must be rejected');
- const youtube=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',output:'MP4'})});
+ const youtube=await request('/api/converter',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({url:'https://www.youtube.com/watch?v=BaW_jenozKc',output:'MP4'})});
  assert.equal(youtube.r.status,400,'Watch links must not impersonate direct media files');
  const mp4=await convert('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4','MP4');
  assert.equal(String.fromCharCode(...mp4.bytes.slice(4,8)),'ftyp','Expected genuine MP4 signature');
