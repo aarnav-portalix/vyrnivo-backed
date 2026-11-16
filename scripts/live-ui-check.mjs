@@ -14,14 +14,22 @@ assert.match(html,/rel="icon"[^>]*href="\/favicon.svg"/);
 assert.match(icon,/viewBox="0 0 64 64"/);
 assert.match(icon,/linearGradient/);
 assert.match(js,/Frequently asked questions/);
-assert.match(js,/Does YouTube downloading always work/);
+assert.match(js,/Do YouTube downloads work/);
 assert.match(css,/\.faq-item/);
-for(const label of ['Our Engine','Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice']){
+for(const label of ['Our Engine','Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','BUILT BY AARNAV','One quick security check']){
  assert.ok(js.includes(label),'Live app is missing '+label);
 }
 assert.doesNotMatch(js,/WebDownloader|yt-dlp/, 'Public UI should not reveal downloader implementation');
 assert.ok(css.includes('.legal-center'),'Live CSS must style policies');
 assert.ok(css.includes('.discover-hub'),'Live CSS must style Discover');
+const homepage=await fetch(base+'/',{signal:AbortSignal.timeout(20000)});
+assert.equal(homepage.headers.get('x-frame-options'),'DENY');
+assert.equal(homepage.headers.get('x-content-type-options'),'nosniff');
+assert.match(homepage.headers.get('content-security-policy')||'',/frame-ancestors 'none'/);
+const botConfig=JSON.parse(await get('/api/security/status'));
+assert.equal(typeof botConfig.enabled,'boolean');
+if(botConfig.enabled)assert.ok(botConfig.siteKey,'Enabled Turnstile must publish a site key, not the secret.');
+else assert.equal(botConfig.siteKey,null);
 const engines=JSON.parse(await get('/api/downloads/status'));
 assert.equal(engines.enabled,true);
 const presence=JSON.parse(await get('/api/presence/status'));
@@ -43,4 +51,4 @@ const search=await fetch(base+'/api/search/instagram?q='+encodeURIComponent('rob
 assert.equal(search.status,200);
 const data=await search.json();
 assert.ok(Array.isArray(data.items),'Instagram results must be an array');
-console.log('LIVE_UI_OK',JSON.stringify({fourTabs:true,privacyAndTerms:true,privateEngineLabels:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,instagramResults:data.items.length}));
+console.log('LIVE_UI_OK',JSON.stringify({fourTabs:true,privacyAndTerms:true,privateEngineLabels:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,securityHeaders:true,botConfigEnabled:botConfig.enabled,instagramResults:data.items.length}));
