@@ -1,0 +1,17 @@
+name: Live Automatic Commons Discovery and MP4 Conversion Test
+on:
+  push:
+    branches: [test/live-auto-commons-licensed-source]
+    paths: [scripts/live-auto-commons-discovery.mjs, .github/workflows/live-auto-commons-discovery.yml]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Check deployed Vyrnivo discovers, validates, converts, and serves real MP4
+        run: node scripts/live-auto-commons-discovery.mjs
