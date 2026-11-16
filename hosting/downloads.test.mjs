@@ -42,3 +42,43 @@ test('an automatically extracted file expires after ten minutes',async()=>{
   assert.equal(res.status,410);
  }finally{m.close()}
 });
+
+test('duplicate requests share a processing job; upstream 429 aborts early and enables cooldown',async()=>{
+ let process,calls=0,kills=0,first,second;
+ const m=await createDownloads({enabled:true,spawnProcess:()=>{
+  calls++;
+  const p=new EventEmitter();
+  p.stderr=new EventEmitter();
+  p.kill=()=>{kills++;queueMicrotask(()=>p.emit('close',1))};
+  process=p;
+  return p;
+ }});
+ const post=async()=>{
+  const req=Readable.from([Buffer.from(JSON.stringify(input))]);req.method='POST';
+  let body;
+  const res={writeHead(status){this.status=status},setHeader(){},end(x){body=JSON.parse(x)}};
+  await m.handle(req,res,'/api/downloads');
+  return {status:res.status,body};
+ };
+ try {
+  first=await post();
+  second=await post();
+  assert.equal(first.status,202);
+  assert.equal(second.status,202);
+  assert.equal(first.body.id,second.body.id);
+  for(let n=0;!process&&n<50;n++)await new Promise(r=>setTimeout(r,10));
+  assert.equal(calls,1);
+  process.stderr.emit('data',Buffer.from('HTTP Error 429: Too Many Requests'));
+  for(let n=0;n<50;n++){
+   await new Promise(r=>setTimeout(r,10));
+   const req={method:'GET'},res={writeHead(status){this.status=status},end(s){this.body=JSON.parse(s)}};
+   await m.handle(req,res,'/api/downloads/'+first.body.id);
+   if(res.body.state==='failed')break;
+  }
+  assert.equal(kills,1,'Rate-limited extractor must terminate immediately');
+  const retry=await post();
+  assert.equal(retry.status,429);
+  assert.equal(retry.body.code,'SOURCE_RATE_LIMITED');
+  assert.equal(calls,1);
+ }finally{m.close()}
+});
