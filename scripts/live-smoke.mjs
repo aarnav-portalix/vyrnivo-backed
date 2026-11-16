@@ -31,7 +31,7 @@ assert.equal(downloads.enabled,true);
 const uploads=await json(await call('/api/files/status'));
 assert.equal(uploads.enabled,true);
 
-const payload=Buffer.from('RIFF\\x24\\x00\\x00\\x00WAVEfmt test upload for Vyrnivo','utf8');
+const payload=Buffer.from('Vyrnivo automated upload integrity test', 'utf8');
 const posted=await call('/api/files/upload',{
  method:'POST',
  headers:{Origin:base,'Content-Type':'audio/wav','X-File-Name':'vyrnivo-smoke.wav'},
@@ -40,7 +40,19 @@ const posted=await call('/api/files/upload',{
 const job=await json(posted);
 assert.equal(job.state,'ready');
 assert.equal(job.bytes,payload.length);
-assert.match(job.url,/^\\/api\\/downloads\\/[0-9a-f-]{36}\\/file$/);
+assert.match(job.url,new RegExp('^/api/downloads/[0-9a-f-]{36}/file
+const fetched=await call(job.url);
+assert.equal(fetched.status,200);
+const received=Buffer.from(await fetched.arrayBuffer());
+assert.equal(hash(received),hash(payload),'Returned bytes must match exactly');
+const denied=await call('/api/files/upload',{
+ method:'POST',
+ headers:{Origin:'https://untrusted.invalid','Content-Type':'audio/wav','X-File-Name':'not-allowed.wav'},
+ body:payload
+});
+assert.equal(denied.status,403,'Cross-origin uploads must be refused');
+console.log('LIVE SMOKE PASSED: web page, health, API, temporary upload, exact-byte download and cross-origin protection.');
+));
 const fetched=await call(job.url);
 assert.equal(fetched.status,200);
 const received=Buffer.from(await fetched.arrayBuffer());
