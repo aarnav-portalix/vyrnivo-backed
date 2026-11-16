@@ -8,6 +8,7 @@ if(!report.extensionBuild){console.log('EXTENSION_SHOWDOWN',JSON.stringify({...r
 let browser;
 try{
  browser=await puppeteer.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-extensions-except='+ext,'--load-extension='+ext]});
+ report.extensionBackgroundCount=browser.targets().filter(t=>t.url().startsWith('chrome-extension://')).length;
  const page=await browser.newPage();
  const resp=await page.goto('https://www.youtube.com/watch?v=aqz-KE-bpKQ',{waitUntil:'domcontentloaded',timeout:35000}).catch(e=>null);
  report.youtubePageHttp=resp?.status()||null;
@@ -18,6 +19,7 @@ try{
   return {parserAvailable:!!parser,streams:streams.length,hasDownloadApi:typeof parser?.download==='function',title:document.title?.slice(0,80),requiresSignIn:/sign in to confirm|not a bot|unusual traffic/i.test(document.body?.innerText||'')};
  });
  Object.assign(report,state);
+ report.extensionBackgroundCount=browser.targets().filter(t=>t.url().startsWith('chrome-extension://')).length;
  report.verifiedMedia=false;
 }catch(e){report.error=String(e?.message||e).slice(0,200)}
 finally{await browser?.close().catch(()=>{})}
