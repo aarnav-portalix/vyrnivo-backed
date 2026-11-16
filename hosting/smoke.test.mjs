@@ -7,7 +7,7 @@ test('single-host website and source-only downloads API work without revealing b
   const port=18091;
   const base='http://127.0.0.1:'+port;
   const child=spawn(process.execPath,['hosting/server.mjs'],{
-    cwd:process.cwd(),env:{...process.env,PORT:String(port),DOWNLOADS_ENABLED:'true',DOWNLOAD_API_TOKEN:'private-server-token'},
+    cwd:process.cwd(),env:{...process.env,PORT:String(port),DOWNLOADS_ENABLED:'true',DOWNLOAD_API_TOKEN:'private-server-token',TURNSTILE_SITE_KEY:'',TURNSTILE_SECRET_KEY:''},
     stdio:['ignore','ignore','pipe']
   });
   let errors='';
@@ -22,12 +22,19 @@ test('single-host website and source-only downloads API work without revealing b
     assert.equal(ready,true,'Server must become healthy. '+errors);
     let r=await fetch(base+'/');
     assert.equal(r.status,200);
+    assert.equal(r.headers.get('x-frame-options'),'DENY');
+    assert.equal(r.headers.get('x-content-type-options'),'nosniff');
+    assert.match(r.headers.get('content-security-policy'),/frame-ancestors 'none'/);
+    assert.match(r.headers.get('permissions-policy'),/camera=\(\)/);
     assert.match(await r.text(),/html/i);
+    r=await fetch(base+'/api/security/status');
+    assert.equal(r.status,200);
+    assert.deepEqual(await r.json(),{enabled:false,siteKey:null});
     // Legal policies and Discover are bundled into the deployed public app.
     r=await fetch(base+'/app.js');
     assert.equal(r.status,200);
     const frontend=await r.text();
-    for(const phrase of ['Our Engine','Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover']){
+    for(const phrase of ['Our Engine','Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover','BUILT BY AARNAV','One quick security check']){
       assert.ok(frontend.includes(phrase),'Missing production UI feature: '+phrase);
     }
     r=await fetch(base+'/api/downloads/status');
