@@ -3,18 +3,28 @@ import {createDownloads} from './downloads.mjs';
 import {createConverter} from './converter.mjs';
 import {createPresence} from './presence.mjs';
 import {allowApi} from './access.mjs';
+import {createHumanVerification} from './security.mjs';
+import {setSecurityHeaders} from './security-headers.mjs';
 import worker from '../dist/server/index.js';
 const env=process.env;
-const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false'});
+const humanCheck=createHumanVerification({
+ siteKey:env.TURNSTILE_SITE_KEY||'',
+ secretKey:env.TURNSTILE_SECRET_KEY||'',
+ expectedHostname:env.TURNSTILE_EXPECTED_HOSTNAME||'vyrnivo-downloads.onrender.com'
+});
+if(humanCheck.incomplete)console.warn('Turnstile setup incomplete; challenge stays disabled until both keys exist.');
+const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify});
 const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true'});
 const presence=createPresence();
 const buckets=new Map();
 const uploadRemoved=()=>({enabled:false,reason:'Manual uploads are disabled. Paste a YouTube or Instagram link to receive an automatically hosted 10-minute download.'});
 const server=http.createServer(async(req,res)=>{
+ setSecurityHeaders(res);
  const json=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(d))};
  try{
  const path=new URL(req.url,'http://localhost').pathname;
  if(path==='/health')return json({ok:true,downloads:downloads.enabled,converter:converter.enabled,fileHosting:true});
+ if(path==='/api/security/status'&&req.method==='GET')return json(humanCheck.publicStatus());
  if((path.startsWith('/api/downloads')||path.startsWith('/api/files')||path.startsWith('/api/converter')||path.startsWith('/api/presence'))&&!allowApi(req,env))return json({error:'Cross-origin write is not allowed.'},403);
  if(path==='/api/files/status'&&req.method==='GET')return json(uploadRemoved());
  if(path.startsWith('/api/files')||path==='/api/internal/cleanup')return json({error:uploadRemoved().reason},410);
@@ -28,4 +38,7 @@ const server=http.createServer(async(req,res)=>{
  }catch{if(!res.headersSent)json({error:'Request failed. Uploads with an uncertain outcome are held for review.'},502);else res.end()}
 });
 setInterval(()=>{for(const[k,v]of buckets)if(Date.now()-v.start>60000)buckets.delete(k)},60000).unref();
+server.requestTimeout=30000;
+server.headersTimeout=15000;
+server.maxHeadersCount=80;
 server.listen(Number(env.PORT||10000),'0.0.0.0');process.on('SIGTERM',()=>{downloads.close();converter.close();server.close(()=>process.exit(0))});
