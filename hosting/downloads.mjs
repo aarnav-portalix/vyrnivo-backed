@@ -17,7 +17,17 @@ export function validate(input){
  const containers=input.mode==='Audio only'?['Original audio','MP3','M4A','WAV']:['MP4','WebM','MKV'];if(!containers.includes(input.container))throw Error('Choose a valid file type.');
  return {...input,url:u.href,height:heights[input.quality]};
 }
-export function argumentsFor(input,dir){const x=validate(input);const filter=x.height?'[height<='+x.height+']':'';let format=x.mode==='Audio only'?'bestaudio/best':x.mode==='Video only'?'bestvideo'+filter:'bestvideo'+filter+'+bestaudio/best'+filter;
+export function argumentsFor(input,dir){const x=validate(input);const filter=x.height?'[height<='+x.height+']':'';const ext=x.container.toLowerCase();
+ // Prefer streams that fit the requested container without transcoding.
+ // Keep a format fallback for sources that do not offer those streams.
+ const video=(extension)=>'bestvideo[ext='+extension+']'+filter;
+ const audio=(extension)=>'bestaudio[ext='+extension+']';
+ let format;
+ if(x.mode==='Audio only')format='bestaudio/best';
+ else if(x.mode==='Video only')format=ext==='mkv'?'bestvideo'+filter:video(ext)+'/bestvideo'+filter;
+ else if(ext==='mp4')format=video('mp4')+'+'+audio('m4a')+'/best[ext=mp4]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
+ else if(ext==='webm')format=video('webm')+'+'+audio('webm')+'/best[ext=webm]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
+ else format='bestvideo'+filter+'+bestaudio/best'+filter;
  const a=['-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--socket-timeout','20','--extractor-retries','0','--retries','1','--fragment-retries','1','--max-filesize','200M','--match-filter','duration <= 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
  if(x.mode==='Audio only'){a.push('-x');if(x.container!=='Original audio')a.push('--audio-format',x.container.toLowerCase(),'--audio-quality','0')}
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
