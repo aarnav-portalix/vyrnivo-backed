@@ -1,0 +1,43 @@
+name: Alternative cloud network YouTube access probe
+on:
+  push:
+    branches:
+      - experiment/test-free-cloud-youtube-access
+    paths:
+      - .github/workflows/alternative-cloud-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official open-source yt-dlp in temporary GitHub VM
+        run: python -m pip install --disable-pip-version-check "yt-dlp[default]"
+      - name: Fetch one short public downloader test video, then verify bytes
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/vyrnivo-cloud-probe
+          cd /tmp/vyrnivo-cloud-probe
+          trap 'rm -f probe.*' EXIT
+          echo "PROBE_NETWORK=GitHub hosted Linux VM (not a public web server)"
+          python -m yt_dlp --ignore-config --no-playlist --no-progress --socket-timeout 10 --extractor-retries 0 --retries 0 --fragment-retries 0 --js-runtimes node --max-filesize 8M --match-filter 'duration <=? 45' -f 'best[ext=mp4][height<=480]/best[height<=480]/best' -o 'probe.%(ext)s' 'https://www.youtube.com/watch?v=BaW_jenozKc'
+          python - <<'PY'
+          import glob,os,sys
+          matches=glob.glob('probe.*')
+          assert len(matches)==1, 'YouTube extractor did not produce a file'
+          path=matches[0];size=os.path.getsize(path)
+          assert size>1024, 'Produced file is empty'
+          with open(path,'rb') as f: first=f.read(32)
+          print('ALT_CLOUD_REAL_DOWNLOAD_SUCCESS',json if False else {'file_extension':path.rsplit('.',1)[-1],'bytes':size,'mp4_signature':first[4:8]==b'ftyp'})
+          PY
