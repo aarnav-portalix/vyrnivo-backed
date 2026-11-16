@@ -8,7 +8,7 @@ test('accepts direct CC0 media URL and MP4 conversion',()=>{
 });
 test('rejects YouTube watch pages, arbitrary hosts, redirects, private targets, unsupported types',()=>{
  for(const link of [
- 'https://youtube.com/watch?v=jNQXAC9IVRw',
+ 'https://youtube.com/watch?v=BaW_jenozKc',
  'http://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
  'https://127.0.0.1/private.mp4',
  'https://interactive-examples.mdn.mozilla.net.evil.org/video.mp4',
