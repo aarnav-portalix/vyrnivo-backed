@@ -1,0 +1,63 @@
+name: Probe free YouTube media providers
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/probe-free-providers.yml
+  pull_request:
+    paths:
+      - .github/workflows/probe-free-providers.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check public API metadata and actual first media bytes
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const id='jNQXAC9IVRw';
+          const sources=[
+            ['piped','https://pipedapi.kavin.rocks'],
+            ['piped','https://pipedapi.leptons.xyz'],
+            ['piped','https://pipedapi.nosebs.ru'],
+            ['invidious','https://inv.nadeko.net'],
+            ['invidious','https://invidious.nerdvpn.de'],
+            ['invidious','https://invidious.tiekoetter.com']
+          ];
+          async function probe([type,base]){
+            const name=new URL(base).hostname;
+            try{
+              const path=type==='piped'?'/streams/'+id:'/api/v1/videos/'+id;
+              const res=await fetch(base+path,{signal:AbortSignal.timeout(14000),headers:{Accept:'application/json'}});
+              if(!res.ok){console.log('PROBE',name,'metadata',res.status);return}
+              const d=await res.json();
+              if(d.error){console.log('PROBE',name,'metadata_error',String(d.error).slice(0,85));return}
+              let url;
+              if(type==='piped'){
+                const v=(d.videoStreams||[]).find(v=>v.url&&!v.videoOnly)||(d.videoStreams||[]).find(v=>v.url);
+                url=v?.url;
+                console.log('PROBE',name,'metadata_ok','videoStreams',(d.videoStreams||[]).length,'audioStreams',(d.audioStreams||[]).length,'videoOnly',v?.videoOnly);
+              }else{
+                const formats=(d.formatStreams||[]);
+                url=formats.find(f=>f.url&&/mp4/i.test(f.type||''))?.url||formats[0]?.url;
+                console.log('PROBE',name,'metadata_ok','formatStreams',formats.length,'adaptiveFormats',(d.adaptiveFormats||[]).length);
+              }
+              if(!url){console.log('PROBE',name,'no_direct_stream');return}
+              const streamUrl=new URL(url,base);
+              if(!['https:'].includes(streamUrl.protocol))return console.log('PROBE',name,'invalid_stream_scheme');
+              const s=await fetch(streamUrl,{headers:{Range:'bytes=0-65535'},signal:AbortSignal.timeout(14000)});
+              const reader=s.body?.getReader();
+              let count=0;
+              if(reader){const r=await reader.read();count=r.value?.byteLength||0;await reader.cancel()}
+              console.log('PROBE',name,'media_http',s.status,'media_bytes',count,'media_host',streamUrl.hostname,'type',(s.headers.get('content-type')||'').slice(0,35));
+            }catch(e){console.log('PROBE',name,'failed',String(e?.message||e).slice(0,150))}
+          }
+          await Promise.all(sources.map(probe));
+          JS
