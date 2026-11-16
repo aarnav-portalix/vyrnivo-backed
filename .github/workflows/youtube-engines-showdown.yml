@@ -1,0 +1,69 @@
+name: 2026 YouTube extractor showdown - real CC bytes
+on:
+  push:
+    branches: [experiment/youtube-engine-showdown-2026]
+    paths:
+      - scripts/engine-showdown.mjs
+      - scripts/yt-dlp-wasm-probe.mjs
+      - .github/workflows/youtube-engines-showdown.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  node-extractors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [youtubeijs, distube]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install actual current library
+        run: |
+          mkdir -p /tmp/youtube-engine
+          cp scripts/engine-showdown.mjs /tmp/youtube-engine/probe.mjs
+          cd /tmp/youtube-engine
+          npm init -y >/dev/null
+          if [ "${{ matrix.engine }}" = "youtubeijs" ]; then npm install --omit=optional youtubei.js@latest; else npm install --omit=optional @distube/ytdl-core@latest; fi
+      - name: Attempt public Creative Commons video and check real CDN bytes
+        run: cd /tmp/youtube-engine && timeout 100s node probe.mjs ${{ matrix.engine }}
+  yt-dlp-ejs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install latest yt-dlp with its official EJS helper
+        run: |
+          python3 -m venv /tmp/ydlp-test
+          /tmp/ydlp-test/bin/pip install -q --upgrade 'yt-dlp[default]'
+          /tmp/ydlp-test/bin/python -m yt_dlp --version
+          /tmp/ydlp-test/bin/pip show yt-dlp-ejs | grep -E '^Name:|^Version:' || true
+      - name: Attempt original video, not a Wikimedia replacement
+        run: |
+          set +e
+          timeout 100s /tmp/ydlp-test/bin/python -m yt_dlp --ignore-config --no-playlist --no-progress --js-runtimes node --socket-timeout 12 --retries 0 --fragment-retries 0 --extractor-retries 0 -f 'b[ext=mp4]/b' --test --test-filesize 512K -o '/tmp/youtube-cc.%(ext)s' 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' > /tmp/ydlp.log 2>&1
+          code=$?
+          grep -E 'ERROR|WARNING|Downloading|yt_dlp' /tmp/ydlp.log | tail -14 | sed -E 's@https?://[^ ]+@[url]@g' || true
+          file=$(find /tmp -maxdepth 1 -name 'youtube-cc.*' -type f | head -1)
+          if [ -n "$file" ] && [ "$(stat -c%s "$file")" -gt 128 ]; then echo "ENGINE_SHOWDOWN {\"engine\":\"yt-dlp+EJS\",\"verifiedMedia\":true,\"bytes\":$(stat -c%s "$file"),\"exitCode\":$code}"; else echo "ENGINE_SHOWDOWN {\"engine\":\"yt-dlp+EJS\",\"verifiedMedia\":false,\"exitCode\":$code}"; fi
+  wasm-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '25'}
+      - name: Install browser-wasm extraction engine in its supported Node JSPI runtime
+        run: |
+          mkdir -p /tmp/wasm-engine
+          cp scripts/yt-dlp-wasm-probe.mjs /tmp/wasm-engine/probe.mjs
+          cd /tmp/wasm-engine
+          npm init -y >/dev/null
+          npm install @project516/yt-dlp-wasm@latest
+      - name: Check if WASM version can retrieve original video bytes from cloud
+        run: cd /tmp/wasm-engine && timeout 150s node probe.mjs
