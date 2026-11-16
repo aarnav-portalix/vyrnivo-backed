@@ -33,7 +33,8 @@ const faqs=[
  ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
  ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
  ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.'],
- ['What is Vyrnivo Converter?','Our FFmpeg engine converts direct media files to MP4/MP3. It can also look for independently hosted Creative Commons video alternatives based on a YouTube link. A match is not necessarily the full or identical YouTube upload.']
+ ['What is Vyrnivo Converter?','Our FFmpeg engine converts direct media files to MP4/MP3. It can also look for independently hosted Creative Commons video alternatives based on a YouTube link. A match is not necessarily the full or identical YouTube upload.'],
+ ['Do I need to sign in?','No. Vyrnivo currently works without creating an account or connecting Google or other social sign-ins.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
