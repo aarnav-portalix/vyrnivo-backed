@@ -19,9 +19,9 @@ assert.match(css,/\.faq-item/);
 for(const label of ['Our Engine','Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice']){
  assert.ok(js.includes(label),'Live app is missing '+label);
 }
-assert.doesNotMatch(js,/Vyrnivo \\/ yt-dlp|WebDownloader/, 'Public bundle should not reveal downloader implementation');
-assert.match(css,/\\.legal-center/);
-assert.match(css,/\\.discover-hub/);
+assert.doesNotMatch(js,/WebDownloader|yt-dlp/, 'Public UI should not reveal downloader implementation');
+assert.ok(css.includes('.legal-center'),'Live CSS must style policies');
+assert.ok(css.includes('.discover-hub'),'Live CSS must style Discover');
 const engines=JSON.parse(await get('/api/downloads/status'));
 assert.equal(engines.enabled,true);
 const presence=JSON.parse(await get('/api/presence/status'));
