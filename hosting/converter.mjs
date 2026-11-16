@@ -11,6 +11,7 @@ import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {Readable,Transform} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
+import {licensedSourceForYoutube} from './licensed-youtube.mjs';
 
 const SOURCE_HOSTS=new Set([
  'interactive-examples.mdn.mozilla.net',
@@ -29,6 +30,18 @@ export function validateConversion(input){
  if(raw.length>1900)throw Error('The media URL is too long.');
  let url;
  try{url=new URL(raw)}catch{throw Error('Enter a valid HTTPS media file URL.')}
+ const licensed=licensedSourceForYoutube(raw);
+ if(licensed){
+  if(input.output!=='MP4'&&input.output!=='MP3')throw Error('Choose MP4 or MP3 as the output.');
+  const sourceUrl=new URL(licensed.mediaUrl);
+  if(!SOURCE_HOSTS.has(sourceUrl.hostname))throw Error('The licensed source is not approved.');
+  return {url:sourceUrl.href,extension:'ogv',output:input.output,sourceMetadata:{
+   videoTitle:licensed.videoTitle,description:licensed.description,sourcePage:licensed.sourcePage,
+   license:licensed.license,licenseUrl:licensed.licenseUrl,attribution:licensed.attribution,
+   transformed:licensed.transformed,durationSeconds:licensed.durationSeconds,
+   alternateVersion:true
+  }};
+ }
  if(url.protocol!=='https:'||url.username||url.password||url.port||!SOURCE_HOSTS.has(url.hostname.toLowerCase()))throw Error('Use a direct media file from an approved public source (MDN, Wikimedia or W3C).');
  const ext=url.pathname.split('.').pop()?.toLowerCase();
  if(!EXTENSIONS.has(ext))throw Error('Paste a direct media file ending in MP4, WebM, MOV, M4V, OGV, OGG, MP3, M4A, WAV or Opus—not a webpage or YouTube watch link.');
@@ -96,7 +109,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
  const jobs=new Map();
  let active=false;
  if(enabled){await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true,mode:0o700})}
- const publicJob=j=>({id:j.id,engine:'converter',state:j.state,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,bytes:j.bytes||0,downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null});
+ const publicJob=j=>({id:j.id,engine:'converter',state:j.state,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,bytes:j.bytes||0,sourceMetadata:j.sourceMetadata||null,downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null});
  const clean=async()=>{
   for(const [id,j] of jobs){
    if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';await rm(j.dir,{recursive:true,force:true})}
@@ -114,7 +127,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
    await rm(source,{force:true});
    const info=await stat(out);
    if(!info.size||info.size>MAX_OUTPUT_BYTES)throw Error('Converted file exceeds the 80 MB server limit.');
-   j.bytes=info.size;j.name='vyrnivo-converted.'+input.output.toLowerCase();j.file=out;
+   j.bytes=info.size;j.name='vyrnivo-converted.'+input.output.toLowerCase();j.file=out;j.sourceMetadata=input.sourceMetadata||null;
    j.expiresAt=now()+RETENTION_MS;j.state='ready';
   }catch(e){
    console.error('converter_failure',String(e?.message||e).slice(0,240));
@@ -126,7 +139,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
   enabled,sweep:clean,close(){clearInterval(timer)},
   async handle(req,res,path){
    const send=(data,status=200)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
-   if(path==='/api/converter/status'&&req.method==='GET')return send({enabled,formats:['MP4','MP3'],sourceHosts:[...SOURCE_HOSTS],maxInputMB:30,maxOutputMB:80,retentionMinutes:10,description:'Vyrnivo first-party converter for direct, authorized media files. YouTube watch links are not direct media files.'});
+   if(path==='/api/converter/status'&&req.method==='GET')return send({enabled,formats:['MP4','MP3'],sourceHosts:[...SOURCE_HOSTS],maxInputMB:30,maxOutputMB:80,retentionMinutes:10,description:'Vyrnivo first-party converter for direct, authorized media files, plus one curated and clearly labeled licensed YouTube-film excerpt. General YouTube links are not supported.'});
    if(!enabled)return send({error:'Converter is currently offline.'},503);
    if(path==='/api/converter'&&req.method==='POST'){
     let body='';
@@ -137,7 +150,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
     let input;try{input=validateConversion(JSON.parse(body))}catch(e){return send({error:e.message},400)}
     if(active)return send({error:'Another media file is being converted. Try again shortly.'},429);
     const id=randomUUID();
-    const j={id,dir:join(root,id),createdAt:now(),state:'processing'};
+    const j={id,dir:join(root,id),createdAt:now(),state:'processing',sourceMetadata:input.sourceMetadata||null};
     jobs.set(id,j);active=true;
     void execute(j,input);
     return send(publicJob(j),202);
