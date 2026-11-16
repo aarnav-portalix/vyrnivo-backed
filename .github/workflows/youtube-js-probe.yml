@@ -1,0 +1,43 @@
+name: Independent YouTube.js extraction probe
+on:
+  push:
+    branches:
+      - experiment/test-free-cloud-youtube-access
+    paths:
+      - .github/workflows/youtube-js-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test second engine with standard anonymous access (no auth circumvention)
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          TEMP_DIR="$(mktemp -d)"
+          cd "$TEMP_DIR"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --silent youtubei.js@18.3.0
+          node --input-type=module <<'JS'
+          import { Innertube } from 'youtubei.js';
+          const timeout=setTimeout(()=>{console.log('YOUTUBE_JS_PROBE timed_out');process.exit(2)},55000);
+          try{
+            const api=await Innertube.create({generate_session_locally:true,enable_session_cache:false});
+            const info=await api.getBasicInfo('jNQXAC9IVRw');
+            console.log('YOUTUBE_JS_METADATA',JSON.stringify({titleAvailable:!!info.basic_info?.title,playability:info.playability_status?.status||'unknown',formats:(info.streaming_data?.formats?.length||0)+(info.streaming_data?.adaptive_formats?.length||0)}));
+            const stream=await api.download('jNQXAC9IVRw',{type:'video+audio',quality:'best',format:'mp4'});
+            const reader=stream.getReader();
+            const chunk=await reader.read();
+            await reader.cancel();
+            console.log('YOUTUBE_JS_STREAM_RESULT',JSON.stringify({firstChunkBytes:chunk.value?.byteLength||0,isEmpty:!!chunk.done}));
+            if(!chunk.value?.byteLength)process.exitCode=1;
+          }catch(e){console.log('YOUTUBE_JS_ERROR',String(e?.message||e).slice(0,500));process.exitCode=1}
+          finally{clearTimeout(timeout)}
+          JS
