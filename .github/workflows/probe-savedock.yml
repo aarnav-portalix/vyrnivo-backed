@@ -1,0 +1,49 @@
+name: Probe hosted YouTube API (authorized test video)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/probe-savedock.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check that hosted MCP service supports public licensed YouTube clip
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const url='https://mcp.savedock.pro/mcp';
+          let session='';
+          async function call(method,params,id){
+            const headers={'content-type':'application/json',accept:'application/json, text/event-stream'};
+            if(session)headers['mcp-session-id']=session;
+            const response=await fetch(url,{method:'POST',headers,
+              body:JSON.stringify({jsonrpc:'2.0',id,method,params}),
+              signal:AbortSignal.timeout(22000)});
+            session=response.headers.get('mcp-session-id')||session;
+            const body=await response.text();
+            console.log('MCP_STATUS',method,response.status,'content-type:',response.headers.get('content-type'), 'bytes:',body.length);
+            if(!response.ok){console.log('MCP_ERROR',method,body.slice(0,300));return null}
+            if(body.startsWith('data:')){const line=body.split('\n').find(x=>x.startsWith('data:'));return JSON.parse(line.slice(5))}
+            if(body.includes('\ndata:')){const line=body.split('\n').find(x=>x.startsWith('data:'));return JSON.parse(line.slice(5))}
+            return JSON.parse(body);
+          }
+          try{
+            let init=await call('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'vyrnivo-probe',version:'0.1.0'}},1);
+            console.log('INITIALIZED',Boolean(init?.result));
+            if(!init?.result){console.log('RESULT: MCP_INITIALIZATION_FAILED');process.exit(0)}
+            let tools=await call('tools/list',{},2);
+            const names=tools?.result?.tools?.map(x=>x.name)||[];
+            console.log('TOOLS',JSON.stringify(names));
+            if(!names.includes('get_video_info')){console.log('RESULT: MISSING_VIDEO_INFO_TOOL');process.exit(0)}
+            let check=await call('tools/call',{name:'get_video_info',arguments:{url:'https://www.youtube.com/watch?v=aqz-KE-bpKQ'}},3);
+            console.log('INFO_RESULT',JSON.stringify(check).slice(0,1600));
+            console.log('RESULT:',check?.result&&!check.result.isError?'YOUTUBE_INFO_SUCCESS':'YOUTUBE_INFO_FAILED');
+          }catch(e){console.log('RESULT: PROVIDER_REQUEST_FAILED',String(e))}
+          JS
