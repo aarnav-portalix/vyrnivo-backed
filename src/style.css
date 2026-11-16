@@ -267,3 +267,14 @@ svg{flex-shrink:0}
 .converter-license strong{color:#f4eaff;font-size:12px}
 .converter-license a{text-decoration:underline;color:#e0bdfd}
 .ready .converter-license{margin-top:16px}
+
+/* A user-reviewed Commons alternative never masquerades as the YouTube upload. */
+.alternatives-status{font-size:12px;line-height:1.65;color:#c9b5df;margin:16px 0 4px}
+.alternatives-list{display:grid;gap:10px;margin-top:14px}
+.alternative-card{border:1px solid #c9a4fa46;border-radius:13px;padding:14px;background:linear-gradient(120deg,#ffffff0c,#b59ced0d)}
+.alternative-card strong{font-size:13px;color:#f2e4fc;line-height:1.5}
+.alternative-card p{font-size:11px;line-height:1.6;margin:5px 0;color:#ad9ec2}
+.alternative-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}
+.alternative-actions a{font-size:11px;color:#dfbdff;text-decoration:underline;display:inline-flex;gap:5px;align-items:center}
+.alternative-actions button{min-height:41px}
+@media(max-width:520px){.alternative-actions{align-items:stretch;flex-direction:column}.alternative-actions .outline-btn{width:100%}}
