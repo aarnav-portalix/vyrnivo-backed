@@ -1,0 +1,34 @@
+name: Public website architecture clues (HTML only)
+on:
+  push:
+    branches:
+      - experiment/test-free-cloud-youtube-access
+    paths:
+      - .github/workflows/public-downloader-inspection.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect only public homepage markup, without downloads or invoking converter endpoints
+        run: |
+          node --input-type=module <<'JS'
+          const urls=['https://vd6s.net/en/','https://yt-mp4.net/'];
+          for (const url of urls) {
+            try{
+              const r=await fetch(url,{signal:AbortSignal.timeout(14000),redirect:'follow',headers:{'user-agent':'Mozilla/5.0 (compatible; PublicMarkupReview/1.0)'}});
+              const html=(await r.text()).slice(0,300000);
+              const scripts=[...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)].map(x=>x[1]).slice(0,15);
+              const formTags=[...html.matchAll(/<form\b[^>]*>/gi)].map(x=>x[0].slice(0,250)).slice(0,8);
+              const methods=[...html.matchAll(/\b(fetch\(|axios|XMLHttpRequest|<iframe|<form)/gi)].map(x=>x[1]).slice(0,30);
+              console.log('PUBLIC_SITE_MARKUP',JSON.stringify({url,status:r.status,finalHost:new URL(r.url).hostname,bytes:html.length,scripts,forms:formTags,requestClues:methods.slice(0,10),hasChallenge:/Just a moment|checking your browser|challenge-platform/i.test(html)}));
+            }catch(e){console.log('PUBLIC_SITE_MARKUP',JSON.stringify({url,error:String(e?.message||e).slice(0,180)}))}
+          }
+          JS
