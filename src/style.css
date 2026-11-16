@@ -260,3 +260,10 @@ svg{flex-shrink:0}
 .converter-sample{display:inline-flex;border:0;background:none;color:#d4aaff;font-size:12px;text-decoration:underline;margin:14px 0 0;padding:4px 0}
 .converter-body .converter-hint{font-size:10px;color:#9a8aa9;margin:12px 0 0}
 @media(max-width:520px){.converter-body{padding:14px}.converter-tool>summary{padding:14px 13px}.converter-options{grid-template-columns:1fr}.converter-tool>summary small{font-size:9px}}
+
+/* Provenance and attribution are visible whenever a licensed alternate clip is used. */
+.converter-examples{display:flex;flex-wrap:wrap;gap:8px 18px;margin:11px 0 3px}
+.converter-license{margin-top:13px;border:1px solid #a68ddb64;border-radius:11px;background:#9570c71c;padding:12px 14px;display:flex;flex-direction:column;gap:7px;font-size:11px;line-height:1.55;color:#cebce1}
+.converter-license strong{color:#f4eaff;font-size:12px}
+.converter-license a{text-decoration:underline;color:#e0bdfd}
+.ready .converter-license{margin-top:16px}
