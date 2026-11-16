@@ -7,6 +7,13 @@ test('container choices prefer compatible streams and preserve audio-only behavi
  const video=argumentsFor({...input,mode:'Video only'},'/tmp/job');assert(video[video.indexOf('-f')+1].includes('bestvideo[ext=mp4][height<=1080]/bestvideo[height<=1080]'));
  const audio=argumentsFor({...input,mode:'Audio only',container:'MP3'},'/tmp/job');assert.equal(audio[audio.indexOf('-f')+1],'bestaudio/best');assert(audio.includes('--audio-format'));assert(audio.includes('mp3'));
 });
+test('fast 720p progressive MP4 is preferred when available',()=>{
+ const a=argumentsFor({...input,quality:'720p'},'/tmp/fast');
+ const f=a[a.indexOf('-f')+1];
+ assert.equal(f.startsWith('best[ext=mp4][height<=720]/'),true);
+ assert.equal(f.includes('bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]'),true);
+ for(const url of ['https://music.youtube.com/watch?v=BaW_jenozKc','https://www.youtube-nocookie.com/embed/BaW_jenozKc'])assert.doesNotThrow(()=>validate({...input,url}));
+});
 test('completed job exposes and streams exact prepared bytes',async()=>{const bytes=Buffer.from('fixture-media-bytes');const manager=await createDownloads({enabled:true,spawnProcess:(cmd,args)=>{const p=new EventEmitter();p.stderr=new EventEmitter();p.kill=()=>{};queueMicrotask(async()=>{await writeFile(args[args.indexOf('-o')+1].replace('%(ext)s','mp4'),bytes);p.emit('close',0)});return p}});try{let result;const req=Readable.from([Buffer.from(JSON.stringify(input))]);req.method='POST';const res={writeHead(s){this.status=s},end(v){result=JSON.parse(v)}};await manager.handle(req,res,'/api/downloads');assert.equal(res.status,202);const id=result.id;for(let i=0;i<50;i++){await new Promise(r=>setTimeout(r,10));await manager.handle({method:'GET'},res,'/api/downloads/'+id);if(result.state!=='processing')break}assert.equal(result.state,'ready');assert(result.expiresAt>Date.now()+590000);const stream=new PassThrough();stream.writeHead=(status,headers)=>{assert.equal(status,200);assert.equal(headers['content-length'],bytes.length)};const chunks=[];stream.on('data',c=>chunks.push(c));const complete=new Promise(r=>stream.on('end',r));await manager.handle({method:'GET'},stream,'/api/downloads/'+id+'/file');await complete;assert.deepEqual(Buffer.concat(chunks),bytes)}finally{manager.close()}});
 test('manual upload route is retired; only extracted media is hosted',async()=>{
  const m=await createDownloads({enabled:true});
