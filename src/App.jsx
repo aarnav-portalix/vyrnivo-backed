@@ -100,7 +100,39 @@ function App(){
  const inputRef=useRef(null);
  const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
  const refreshStatus=async()=>{try{const r=await fetch('/api/downloads/status');const s=await r.json();setStatus(r.ok?s:{enabled:false})}catch{setStatus({enabled:false})}};
- useEffect(()=>{refreshStatus();const onHash=()=>{const next=location.hash.slice(1);setPage(pages.includes(next)?next:'download')};window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[]);
+ useEffect(()=>{
+  refreshStatus();
+  const statusTimer=setInterval(refreshStatus,30000);
+  const onHash=()=>{const next=location.hash.slice(1);setPage(pages.includes(next)?next:'download')};
+  window.addEventListener('hashchange',onHash);
+  return()=>{clearInterval(statusTimer);window.removeEventListener('hashchange',onHash)};
+ },[]);
+ useEffect(()=>{
+  const key='vyrnivo-active-browser-id';
+  let id;
+  try{id=localStorage.getItem(key)}catch{}
+  if(!/^[a-f0-9-]{36}$/i.test(id||'')){
+   id=crypto.randomUUID();
+   try{localStorage.setItem(key,id)}catch{}
+  }
+  let live=true,pending=false;
+  const heartbeat=async()=>{
+   if(!live||pending||document.visibilityState==='hidden')return;
+   pending=true;
+   try{
+    const r=await fetch('/api/presence/heartbeat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id})});
+    if(!r.ok)throw Error('Presence unavailable');
+    const data=await r.json();
+    if(live)setPresence(data);
+   }catch{if(live)setPresence(null)}
+   finally{pending=false}
+  };
+  const timer=setInterval(heartbeat,25000);
+  document.addEventListener('visibilitychange',heartbeat);
+  window.addEventListener('focus',heartbeat);
+  heartbeat();
+  return()=>{live=false;clearInterval(timer);document.removeEventListener('visibilitychange',heartbeat);window.removeEventListener('focus',heartbeat)};
+ },[]);
  useEffect(()=>persist('vyrnivo-mode',mode),[mode]);
  useEffect(()=>persist('vyrnivo-quality',quality),[quality]);
  useEffect(()=>persist('dw3lastJob',job),[job]);
@@ -122,6 +154,7 @@ function App(){
  },[job?.id,job?.state,job?.engine]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+ const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('')};
  const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
   try{
