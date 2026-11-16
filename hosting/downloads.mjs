@@ -26,7 +26,7 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  let format;
  if(x.mode==='Audio only')format='bestaudio/best';
  else if(x.mode==='Video only')format=ext==='mkv'?'bestvideo'+filter:video(ext)+'/bestvideo'+filter;
- else if(ext==='mp4'){const combined='best[ext=mp4]'+filter;const separate=video('mp4')+'+'+audio('m4a');format=x.height&&x.height<=720?combined+'/'+separate+'/bestvideo'+filter+'+bestaudio/best'+filter:separate+'/'+combined+'/bestvideo'+filter+'+bestaudio/best'+filter}
+ else if(ext==='mp4'){const combined='best[ext=mp4]'+filter;const separate=video('mp4')+'+'+audio('m4a');const isInstagram=new URL(x.url).hostname.replace(/^www\./,'')==='instagram.com';format=isInstagram?'best[height<=?'+(x.height||2160)+']/bestvideo*[height<=?'+(x.height||2160)+']+bestaudio/best':x.height&&x.height<=720?combined+'/'+separate+'/bestvideo'+filter+'+bestaudio/best'+filter:separate+'/'+combined+'/bestvideo'+filter+'+bestaudio/best'+filter}
  else if(ext==='webm')format=video('webm')+'+'+audio('webm')+'/best[ext=webm]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
  else format='bestvideo'+filter+'+bestaudio/best'+filter;
  const a=['-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--socket-timeout','12','--extractor-retries','0','--retries','0','--fragment-retries','1','--max-filesize','200M','--match-filter','duration <=? 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
