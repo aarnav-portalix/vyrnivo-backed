@@ -32,8 +32,6 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  const a=['-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--socket-timeout','12','--extractor-retries','0','--retries','0','--fragment-retries','1','--max-filesize','200M','--match-filter','duration <=? 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
  if(x.mode==='Audio only'){a.push('-x');if(x.container!=='Original audio')a.push('--audio-format',x.container.toLowerCase(),'--audio-quality','0')}
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
- const youtubeHost=new URL(x.url).hostname.replace(/^www\./,'');
- if(['youtube.com','m.youtube.com','music.youtube.com','youtu.be','youtube-nocookie.com'].includes(youtubeHost))a.push('--extractor-args','youtube:player_skip=webpage,configs;player_client=tv');
  a.push('--',x.url);return a;
 }
 export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now}={}){
