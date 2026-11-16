@@ -28,8 +28,14 @@ assert.equal(health.ok,true);
 assert.equal(health.downloads,true);
 const downloads=await json(await call('/api/downloads/status'));
 assert.equal(downloads.enabled,true);
-const uploads=await json(await call('/api/files/status'));
-assert.equal(uploads.enabled,false,'Manual uploads must be disabled');
+// Render deploys on a separate clock from GitHub's push event.
+let uploads;
+for(let attempt=0;attempt<30;attempt++){
+ uploads=await json(await call('/api/files/status'));
+ if(uploads.enabled===false)break;
+ await new Promise(resolve=>setTimeout(resolve,3000));
+}
+assert.equal(uploads.enabled,false,'Latest deployment must disable manual uploads');
 const body=Buffer.from('Retired public upload');
 const uploaded=await call('/api/files/upload',{
  method:'POST',headers:{Origin:base,'Content-Type':'audio/wav'},body
