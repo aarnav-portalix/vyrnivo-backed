@@ -2,12 +2,14 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
 import LegalCenter,{legalSections} from './Legal.jsx';
+import HumanCheck from './HumanCheck.jsx';
 
 const icons={
  download:<><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></>,
  youtube:<><rect x="3" y="5" width="18" height="14" rx="5"/><path d="m10 9 5 3-5 3Z"/></>,
  instagram:<><rect x="3" y="3" width="18" height="18" rx="6"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,
  search:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
+ discover:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
  arrow:<path d="M4 12h16m-6-6 6 6-6 6"/>,
  check:<path d="m5 12 4 4L19 6"/>,
  close:<path d="m6 6 12 12M6 18 18 6"/>,
@@ -28,13 +30,12 @@ function saved(key,fallback){try{return JSON.parse(localStorage.getItem(key))??f
 function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
 const pages=['download','engine','discover','about'];
 const faqs=[
- ['How do I download a video?','Paste a public video link, choose the format you want, and press Download. A file link appears if the source allows the download.'],
- ['Does YouTube downloading always work?','No. YouTube may block downloads from this server, even for public videos. If you own the video, you can download it from YouTube Studio.'],
- ['Does Instagram downloading work?','Public Reels can work. Some Reels are private, unavailable, or blocked by Instagram.'],
- ['How long does my download link last?','Prepared files are kept temporarily for up to 10 minutes and may expire sooner if the server restarts.'],
- ['Can I use Vyrnivo on my phone?','Yes. After preparing a supported download, use the Download file button. On iPhone, downloads may appear in the Files app.'],
- ['What is Vyrnivo Converter?','Our FFmpeg engine converts direct media files to MP4/MP3. It can also look for independently hosted Creative Commons video alternatives based on a YouTube link. A match is not necessarily the full or identical YouTube upload.'],
- ['Do I need to sign in?','No. Vyrnivo currently works without creating an account or connecting Google or other social sign-ins.']
+ ['How do I download?','Paste a public link, choose a format, and press Download. Save or share the temporary file link when ready.'],
+ ['Do YouTube downloads work?','Yes, eligible public videos can work. Vyrnivo may automatically try a backup engine if the main one is unavailable. Some videos still fail because of access restrictions or rate limits.'],
+ ['Can I download Instagram Reels?','Some public Reels work; private or restricted Reels may not.'],
+ ['How long do files stay available?','Usually 10 minutes after preparation, or less if the server restarts.'],
+ ['Why might I see human verification?','When the anti-bot check is enabled, you may need to verify before preparing a download.'],
+ ['Do I need an account?','No. Vyrnivo currently works without signing in.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 function friendlyError(message,source){
@@ -76,6 +77,8 @@ function App(){
  const [container,setContainer]=useState('MP4');
  const [more,setMore]=useState(false);
  const [status,setStatus]=useState(null);
+ const [humanStatus,setHumanStatus]=useState({enabled:false,siteKey:null});
+ const [humanCheckOpen,setHumanCheckOpen]=useState(false);
  const [statusExpanded,setStatusExpanded]=useState(false);
  const [presence,setPresence]=useState(null);
  const [searchSource,setSearchSource]=useState('youtube');
@@ -103,6 +106,7 @@ function App(){
  const inputRef=useRef(null);
  const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
  const refreshStatus=async()=>{try{const r=await fetch('/api/downloads/status');const s=await r.json();setStatus(r.ok?s:{enabled:false})}catch{setStatus({enabled:false})}};
+ useEffect(()=>{let alive=true;fetch('/api/security/status').then(r=>{if(!r.ok)throw Error('Security status unavailable');return r.json()}).then(data=>{if(alive)setHumanStatus({enabled:data.enabled===true,siteKey:data.enabled===true?data.siteKey:null})}).catch(()=>{if(alive)setHumanStatus({enabled:false,siteKey:null})});return()=>{alive=false}},[]);
  useEffect(()=>{
   refreshStatus();
   const statusTimer=setInterval(refreshStatus,30000);
@@ -170,16 +174,18 @@ function App(){
  const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&container==='MP3');
  const freeBackupReady=status?.freeFallbackEnabled&&freeBackupCompatible&&Number(status?.backupRetryAt||0)<=tick;
  const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick&&!freeBackupReady;
- async function startDownload(e){
+ async function startDownload(e,verifiedToken=null){
   e?.preventDefault?.();
   const link=url.trim();
   if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
   if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
   if(youtubeUnavailable){setFormError('YouTube downloads are temporarily unavailable. Try again later.');return}
   if(busy)return;
+  if(humanStatus.enabled&&!verifiedToken){setHumanCheckOpen(true);return}
+  setHumanCheckOpen(false);
   setBusy(true);setFormError('');setJob(null);
   try{
-   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container})});
+   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
    setJob(data);
@@ -272,7 +278,7 @@ function App(){
   </header>
   <main className="content" id="main-content">
    <div className="hero">
-    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
+    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY AARNAV':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='engine'?<>Our own <em>engine.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
     <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':page==='discover'?'Search YouTube videos and public Instagram Reels in one place.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
    </div>
@@ -309,7 +315,7 @@ function App(){
        <p className="status-footnote">Status may change when a download starts. “Ready to try” does not guarantee every video. The online count estimates active browsers, not individual people.</p>
        <button type="button" className="refresh-status" onClick={refreshStatus}><Icon name="activity" size={15}/> Refresh engine status</button>
       </div>}
-      <div className="discover-teaser"><span>Looking for something to download? Search videos and Reels in Discover.</span><button type="button" onClick={()=>nav('discover')}>Open Discover <Icon name="arrow" size={15}/></button></div>
+      <div className="discover-teaser"><span>Looking for something to download? Search videos and Reels in Discover.</span><button type="button" onClick={()=>nav('discover')}><Icon name="search" size={15}/> Open Discover <Icon name="arrow" size={15}/></button></div>
      </div>
      {jobView}
     </section>
@@ -373,7 +379,8 @@ function App(){
     </section>
     </section>}
   </main>
-  <footer className="footer"><span className="footer-brand">vyrnivo</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
+  <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
+  {humanCheckOpen&&humanStatus.enabled&&<HumanCheck siteKey={humanStatus.siteKey} onVerified={token=>startDownload(null,token)} onClose={()=>setHumanCheckOpen(false)}/>}
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
   {toast&&<div className="toast" role="status"><Icon name="check" size={18}/>{toast}</div>}
  </div>
