@@ -1,0 +1,19 @@
+name: YouTube to first-party converter live compatibility test
+on:
+  push:
+    branches: [experiment/youtube-to-own-converter-live]
+    paths: [.github/workflows/live-youtube-converter-probe.yml, scripts/live-youtube-converter-probe.mjs]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Try public Creative Commons YouTube media via Vyrnivo (no login or bypass)
+        run: node scripts/live-youtube-converter-probe.mjs
