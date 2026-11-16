@@ -1,0 +1,37 @@
+name: Confirm public frontend/backend split
+on:
+  push:
+    branches: [experiment/test-free-cloud-youtube-access]
+    paths: [.github/workflows/downloader-frontend-architecture.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Inspect public scripts only, no media or private API calls
+        run: |
+          node --input-type=module <<'JS'
+          const get=async(u)=>{
+            const r=await fetch(u,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'Mozilla/5.0'}});
+            return {status:r.status,body:(await r.text()).slice(0,950000)}
+          };
+          const v=await get('https://vd6s.net/theme/vd6snet/js/main.js?v=3.0.63');
+          const patterns=['$.ajax','$.post','$.get','XMLHttpRequest','fetch(','.submit(','FormData','convert','iflydown','download'];
+          const hits=Object.fromEntries(patterns.map(k=>[k,v.body.toLowerCase().split(k.toLowerCase()).length-1]));
+          const link=v.body.indexOf('iflydown.com');
+          const surrounding=link>=0?v.body.slice(Math.max(0,link-90),link+90):'';
+          console.log('VD6S_CLIENT_REVIEW',JSON.stringify({status:v.status,bytes:v.body.length,patterns:hits,iflydownContext:surrounding.replace(/https?:\/\/[\w./?=-]+/g,'[PUBLIC_URL]')}));
+          const h=await get('https://yt-mp4.net/');
+          const candidates=[...h.body.matchAll(/src=["']([^"']*\/_next\/static\/chunks\/pages\/index-[^"']+\.js)["']/g)].map(x=>x[1]);
+          console.log('YTMP4_BUNDLE',JSON.stringify({status:h.status,foundIndexBundle:candidates.length}));
+          if(candidates.length){
+            const p=await get(new URL(candidates[0],'https://yt-mp4.net').href);
+            const keys=['axios','fetch(','/api/','convert','download','savetube','cloudflare'];
+            console.log('YTMP4_CLIENT_REVIEW',JSON.stringify({status:p.status,bytes:p.body.length,patterns:Object.fromEntries(keys.map(k=>[k,p.body.toLowerCase().split(k.toLowerCase()).length-1]))}));
+          }
+          JS
