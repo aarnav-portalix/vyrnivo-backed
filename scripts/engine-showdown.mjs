@@ -33,7 +33,8 @@ async function probe(){
   const req=await import('node:module').then(x=>x.createRequire(import.meta.url));
   const ytdl=req('@distube/ytdl-core');
   result.packageVersion=req('@distube/ytdl-core/package.json').version;
-  const info=await ytdl.getInfo(videoUrl);
+  const yt=new ytdl.Ytdl();
+  const info=await yt.getInfo(videoUrl);
   const streams=info?.formats||[];
   Object.assign(result,{metadata:!!info?.videoDetails,streams:streams.length,hasStreamUrl:streams.some(x=>Boolean(x.url))});
   const playable=streams.find(x=>x.url&&x.container==='mp4')||streams.find(x=>x.url);
