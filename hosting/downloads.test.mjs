@@ -142,7 +142,7 @@ test('blocked Render YouTube extractor falls back to actual free API media bytes
   await request(input.url);
   assert.equal(localCalls,1);
   assert.equal(remoteCalls,1);
-  await request('https://www.youtube.com/watch?v=BaW_jenozKc');
+  await request('https://www.youtube.com/watch?v=jNQXAC9IVRw');
   assert.equal(localCalls,1,'known local 429 cooldown should avoid another blocked local attempt');
   assert.equal(remoteCalls,2);
   const res={writeHead(){},end(text){result=JSON.parse(text)}};
