@@ -8,7 +8,8 @@ export function validate(input){
  const u=new URL(input.url);if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Use an HTTPS video link.');
  const h=u.hostname.replace(/^www\./,'');let allowed=false;
  if(h==='youtu.be')allowed=/^\/[\w-]{11}$/.test(u.pathname);
- if(['youtube.com','m.youtube.com'].includes(h))allowed=(u.pathname==='/watch'&&/^[\w-]{11}$/.test(u.searchParams.get('v')||''))||/^\/(shorts|live)\/[\w-]{11}\/?$/.test(u.pathname);
+ if(['youtube.com','m.youtube.com','music.youtube.com'].includes(h))allowed=(u.pathname==='/watch'&&/^[\w-]{11}$/.test(u.searchParams.get('v')||''))||/^\/(shorts|live)\/[\w-]{11}\/?$/.test(u.pathname);
+ if(h==='youtube-nocookie.com')allowed=/^\/embed\/[\w-]{11}\/?$/.test(u.pathname);
  if(h==='instagram.com')allowed=/^\/(reel|p|tv)\/[\w-]{6,30}\/?$/.test(u.pathname);
  if(!allowed)throw Error('Paste a single YouTube video or public Instagram Reel/post link.');
  const modes=['Video + audio','Video only','Audio only'];if(!modes.includes(input.mode))throw Error('Choose a valid format.');
@@ -25,7 +26,7 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  let format;
  if(x.mode==='Audio only')format='bestaudio/best';
  else if(x.mode==='Video only')format=ext==='mkv'?'bestvideo'+filter:video(ext)+'/bestvideo'+filter;
- else if(ext==='mp4')format=video('mp4')+'+'+audio('m4a')+'/best[ext=mp4]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
+ else if(ext==='mp4'){const combined='best[ext=mp4]'+filter;const separate=video('mp4')+'+'+audio('m4a');format=x.height&&x.height<=720?combined+'/'+separate+'/bestvideo'+filter+'+bestaudio/best'+filter:separate+'/'+combined+'/bestvideo'+filter+'+bestaudio/best'+filter}
  else if(ext==='webm')format=video('webm')+'+'+audio('webm')+'/best[ext=webm]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
  else format='bestvideo'+filter+'+bestaudio/best'+filter;
  const a=['-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--socket-timeout','12','--extractor-retries','0','--retries','0','--fragment-retries','1','--max-filesize','200M','--match-filter','duration <= 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
