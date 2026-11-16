@@ -49,6 +49,11 @@ try{
  assert.equal(licensed.job.sourceMetadata?.alternateVersion,true);
  assert.equal(licensed.job.sourceMetadata?.durationSeconds,33);
  console.log('LICENSED_YOUTUBE_LINK_EXCERPT_OK',JSON.stringify({bytes:licensed.bytes.length,excerptSeconds:licensed.job.sourceMetadata.durationSeconds,source:'Wikimedia Commons',fullYoutubeUpload:false}));
+ const full=await convert('https://www.youtube.com/watch?v=jNQXAC9IVRw','MP4');
+ assert.equal(String.fromCharCode(...full.bytes.slice(4,8)),'ftyp');
+ assert.equal(full.job.sourceMetadata.durationSeconds,19);
+ console.log('SECOND_CC_YOUTUBE_LINK_OK',JSON.stringify({bytes:full.bytes.length,durationSeconds:19,source:'Wikimedia Commons'}));
+
 
 }catch(e){console.error('OWN_CONVERTER_TEST_FAILED',e?.stack||String(e));console.error('SERVER_STDERR',stderr);process.exitCode=1}
 finally{server.kill('SIGTERM')}
