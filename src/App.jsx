@@ -16,12 +16,16 @@ const icons={
  tune:<><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></>,
  music:<><path d="M9 17V5l11-2v12M9 9l11-2"/><circle cx="6" cy="17" r="3"/><circle cx="17" cy="15" r="3"/></>,
  video:<><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/></>,
- external:<><path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/></>
+ external:<><path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/></>,
+ engine:<><circle cx="12" cy="12" r="9"/><path d="m10 8 5 4-5 4z"/></>,
+ about:<><circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10h.01"/></>,
+ users:<><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></>,
+ activity:<><path d="M2 12h4l3-7 6 14 3-7h4"/></>
 };
 function Icon({name,size=19,...props}){return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{icons[name]}</svg>;}
 function saved(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
 function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
-const pages=['download','youtube','instagram'];
+const pages=['download','engine','about'];
 const faqs=[
  ['How do I download a video?','Paste a public video link, choose the format you want, and press Download. A file link appears if the source allows the download.'],
  ['Does YouTube downloading always work?','No. YouTube may block downloads from this server, even for public videos. If you own the video, you can download it from YouTube Studio.'],
@@ -69,6 +73,9 @@ function App(){
  const [container,setContainer]=useState('MP4');
  const [more,setMore]=useState(false);
  const [status,setStatus]=useState(null);
+ const [statusExpanded,setStatusExpanded]=useState(false);
+ const [presence,setPresence]=useState(null);
+ const [searchSource,setSearchSource]=useState('youtube');
  const [job,setJob]=useState(()=>saved('dw3lastJob',null));
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
@@ -192,7 +199,7 @@ function App(){
   searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;
   setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);
   try{
-   const r=await fetch('/api/search/'+page+'?q='+encodeURIComponent(q),{signal:controller.signal});
+   const r=await fetch('/api/search/'+searchSource+'?q='+encodeURIComponent(q),{signal:controller.signal});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Search unavailable.');
    setResults(data.items||[]);setSearchNote(data.notice||'');
@@ -204,23 +211,26 @@ function App(){
   setFormError('');setPreview(null);nav('download');
   showToast('Link added. Choose a format and download.')
  };
- const isSearch=page!=='download';
- const isInstagram=page==='instagram';
+ const isInstagram=searchSource==='instagram';
  const seconds=job?.expiresAt?Math.max(0,Math.ceil((job.expiresAt-tick)/1000)):0;
  const original=job?.error&&isYouTube(url)?url:null;
+ const primaryBlocked=Number(status?.youtubeRetryAt)>tick;
+ const backupBlocked=Number(status?.backupRetryAt)>tick;
+ const remaining=until=>{const seconds=Math.max(0,Math.ceil((Number(until||0)-tick)/1000));return seconds>=60?Math.ceil(seconds/60)+' min':seconds+' sec'};
+ const overallServiceLabel=status?.enabled===false?'Offline':primaryBlocked?(status?.freeFallbackEnabled&&!backupBlocked?'Backup ready to try':'Limited'):'Ready to try';
  return <div className="app-shell">
   <div className="ambient" aria-hidden="true"><span/><span/></div>
   <header className="topbar">
    <a className="logo" href="#download" onClick={e=>{e.preventDefault();nav('download')}}><span className="logo-icon"><img src="/favicon.svg" width="39" height="39" alt=""/></span>vyrnivo<span className="logo-dot">.</span></a>
    <nav aria-label="Main navigation" className="tabs">
-    {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='youtube'?'YouTube':'Instagram'}</span></button>)}
+    {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='engine'?'Our Engine':'About'}</span></button>)}
    </nav>
   </header>
   <main className="content" id="main-content">
    <div className="hero">
-    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':'EXPLORE & DISCOVER'}</p>
-    <h1>{page==='download'?<>Save the <em>moment.</em></>:<>Find your <em>next favorite.</em></>}</h1>
-    <p>{page==='download'?'Paste a link. Pick a format. Download.':isInstagram?'Search public Instagram Reels.':'Search YouTube videos and creators.'}</p>
+    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY VYRNIVO':'BEYOND THE DOWNLOAD'}</p>
+    <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='engine'?<>Our own <em>engine.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
+    <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':'Answers, discovery, and everything else — all in one place.'}</p>
    </div>
    {page==='download'?
     <section className="panel" aria-label="Video downloader">
@@ -242,9 +252,8 @@ function App(){
      </form>
      {isYouTube(url)&&<button type="button" className="converter-sample" onClick={()=>{
       setConvertUrl(url.trim());setAlternatives([]);setAlternativesNotice('');setConvertError('');
-      const panel=document.getElementById('vyrnivo-converter');
-      if(panel){panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'center'})}
-     }}>Search licensed alternatives for this YouTube link <Icon name="arrow" size={14}/></button>}
+       nav('engine');
+     }}>Search licensed alternatives in Our Engine <Icon name="arrow" size={14}/></button>}
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
