@@ -1,30 +1,33 @@
 import {setTimeout as pause} from 'node:timers/promises';
 const api='http://127.0.0.1:9000';
-const clip='https://www.youtube.com/watch?v=aqz-KE-bpKQ'; // Blender Foundation Creative Commons movie
-const report={engine:'self-hosted Cobalt',source:'CC BY video on YouTube',videoId:'aqz-KE-bpKQ'};
-let up=false;
+let version=null,services=[];
 for(let n=0;n<45;n++){
- try{const r=await fetch(api+'/',{signal:AbortSignal.timeout(3000)});if(r.ok){const d=await r.json();report.apiVersion=d.cobalt?.version;report.youtubeAdvertised=(d.cobalt?.services||[]).includes('youtube');up=true;break;}}catch{}
+ try{const r=await fetch(api+'/',{signal:AbortSignal.timeout(3000)});if(r.ok){const d=await r.json();version=d.cobalt?.version;services=d.cobalt?.services||[];break;}}catch{}
  await pause(1000);
 }
-if(!up){console.log('COBALT_PROBE',JSON.stringify({...report,result:'backend-start-failed'}));process.exit(0)}
-try{
- const r=await fetch(api+'/',{method:'POST',headers:{Accept:'application/json','content-type':'application/json'},body:JSON.stringify({url:clip,videoQuality:'360',downloadMode:'auto',localProcessing:'disabled',alwaysProxy:true}),signal:AbortSignal.timeout(45000)});
- let d={};try{d=await r.json()}catch{}
- report.http=r.status;report.status=d.status;report.errorCode=d.error?.code??null;report.returnedMediaLocation=Boolean(d.url);
- if((d.status==='tunnel'||d.status==='redirect')&&d.url){
-  let target;try{target=new URL(d.url)}catch{target=null}
-  if(target?.protocol==='http:'&&target.hostname!=='127.0.0.1'){report.media='not checked: unsafe URL';}
-  else if(target&&['http:','https:'].includes(target.protocol)){
-   try{
-    const m=await fetch(d.url,{headers:{range:'bytes=0-32767'},signal:AbortSignal.timeout(22000)});
-    const reader=m.body?.getReader();let got=new Uint8Array();
-    if(reader){const x=await reader.read();got=x.value||got;await reader.cancel().catch(()=>{})}
-    const isMp4=got.length>8&&String.fromCharCode(...got.slice(4,8))==='ftyp';
-    const isWebM=got.length>4&&got[0]===0x1a&&got[1]===0x45&&got[2]===0xdf&&got[3]===0xa3;
-    report.media={http:m.status,type:m.headers.get('content-type'),bytesRead:got.length,signature:isMp4?'MP4':isWebM?'WebM':'unknown'};
-   }catch(e){report.media={error:String(e?.message||e).slice(0,120)}}
+if(!version){console.log('COBALT_PROBE',JSON.stringify({result:'backend-start-failed'}));process.exit(0)}
+// Both films were released under Creative Commons Attribution 3.0 by Blender Foundation.
+// Only attempt a small sample of media bytes if the processing API returns an eligible link.
+for(const videoId of ['aqz-KE-bpKQ','eRsGyueVLvQ']){
+ const report={engine:'self-hosted Cobalt',apiVersion:version,youtubeAdvertised:services.includes('youtube'),videoId,source:'Blender Foundation CC BY'};
+ try{
+  const r=await fetch(api+'/',{method:'POST',headers:{Accept:'application/json','content-type':'application/json'},body:JSON.stringify({url:'https://www.youtube.com/watch?v='+videoId,videoQuality:'360',downloadMode:'auto',localProcessing:'disabled',alwaysProxy:true}),signal:AbortSignal.timeout(45000)});
+  const d=await r.json().catch(()=>({}));
+  Object.assign(report,{http:r.status,status:d.status,errorCode:d.error?.code||null,returnedMediaLocation:!!d.url});
+  if(['tunnel','redirect'].includes(d.status)&&d.url){
+   const u=new URL(d.url);
+   if(!['https:','http:'].includes(u.protocol))report.media='unsupported url';
+   else{
+    try{
+     const f=await fetch(d.url,{headers:{Range:'bytes=0-32767'},signal:AbortSignal.timeout(22000)});
+     const reader=f.body?.getReader();const first=reader?await reader.read():null;const bytes=first?.value||new Uint8Array();
+     await reader?.cancel().catch(()=>{});
+     const mp4=bytes.length>8&&String.fromCharCode(...bytes.slice(4,8))==='ftyp';
+     const webm=bytes.length>4&&bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf;
+     report.media={http:f.status,bytes:bytes.length,signature:mp4?'MP4':webm?'WebM':'unknown'};
+    }catch(e){report.media={error:String(e?.message||e).slice(0,90)}}
+   }
   }
- }
+ }catch(e){report.error=String(e?.message||e).slice(0,130)}
  console.log('COBALT_PROBE',JSON.stringify(report));
-}catch(e){console.log('COBALT_PROBE',JSON.stringify({...report,result:'request-failed',error:String(e?.message||e).slice(0,120)}))}
+}
