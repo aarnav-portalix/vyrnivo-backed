@@ -4,7 +4,7 @@ import {createConverter} from './converter.mjs';
 import {allowApi} from './access.mjs';
 import worker from '../dist/server/index.js';
 const env=process.env;
-const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP==='true'});
+const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false'});
 const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true'});
 const buckets=new Map();
 const uploadRemoved=()=>({enabled:false,reason:'Manual uploads are disabled. Paste a YouTube or Instagram link to receive an automatically hosted 10-minute download.'});
