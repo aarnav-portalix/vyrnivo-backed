@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+const base='https://vyrnivo-downloads.onrender.com';
+const get=async(path)=>{
+ const r=await fetch(base+path,{signal:AbortSignal.timeout(20000),headers:{Accept:'*/*'}});
+ assert.equal(r.status,200,path+' must be available');
+ return r.text();
+};
+const html=await get('/');
+assert.match(html,/app\.js/,'Frontend bundle should load');
+const js=await get('/app.js');
+const css=await get('/app.css');
+assert.match(js,/YouTube/);
+assert.match(js,/Instagram/);
+assert.match(js,/Download/);
+assert.match(js,/Paste/);
+assert.doesNotMatch(js,/How it works/);
+assert.doesNotMatch(js,/Experimental public Reel discovery/);
+assert.match(css,/@media\s*\(max-width:520px\)/);
+assert.match(css,/prefers-reduced-motion/);
+assert.match(css,/safe-area-inset-bottom/);
+const search=await fetch(base+'/api/search/instagram?q='+encodeURIComponent('roblox rivals'),{signal:AbortSignal.timeout(25000)});
+assert.equal(search.status,200);
+const data=await search.json();
+assert.ok(Array.isArray(data.items),'Instagram results must be an array');
+console.log('LIVE_UI_OK',JSON.stringify({threeTabs:true,unifiedInstagram:true,responsiveCSS:true,instagramResults:data.items.length}));
