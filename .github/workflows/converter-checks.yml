@@ -1,14 +1,17 @@
 name: Vyrnivo Own Converter Checks
 on:
   push:
-    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot, feat/second-licensed-youtube-full-video]
+    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot, feat/second-licensed-youtube-full-video, feat/automatic-licensed-alternatives]
     paths:
       - hosting/converter.mjs
+      - hosting/commons-discovery.mjs
       - hosting/licensed-youtube.mjs
       - hosting/server.mjs
       - src/App.jsx
       - src/style.css
       - tests/converter-validation.test.mjs
+      - tests/commons-discovery.test.mjs
+      - scripts/commons-discovery-e2e.mjs
       - scripts/converter-e2e.mjs
       - .github/workflows/converter-checks.yml
   workflow_dispatch:
@@ -26,7 +29,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test tests/converter-validation.test.mjs
+      - run: node --test tests/converter-validation.test.mjs tests/commons-discovery.test.mjs
+      - name: Query real Commons catalogue without a token
+        run: node scripts/commons-discovery-e2e.mjs
       - name: Install FFmpeg on GitHub's temporary test runner
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: ffmpeg -version
