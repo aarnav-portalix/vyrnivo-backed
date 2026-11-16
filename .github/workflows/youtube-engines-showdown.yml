@@ -46,9 +46,9 @@ jobs:
       - name: Attempt original video, not a Wikimedia replacement
         run: |
           set +e
-          timeout 100s /tmp/ydlp-test/bin/python -m yt_dlp --ignore-config --no-playlist --no-progress --js-runtimes node --socket-timeout 12 --retries 0 --fragment-retries 0 --extractor-retries 0 -f 'b[ext=mp4]/b' --test --test-filesize 512K -o '/tmp/youtube-cc.%(ext)s' 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' > /tmp/ydlp.log 2>&1
+          timeout 100s /tmp/ydlp-test/bin/python -m yt_dlp --ignore-config --no-playlist --no-progress --js-runtimes node --socket-timeout 12 --retries 0 --fragment-retries 0 --extractor-retries 0 -f 'b[ext=mp4]/b' --test -o '/tmp/youtube-cc.%(ext)s' 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' > /tmp/ydlp.log 2>&1
           code=$?
-          grep -E 'ERROR|WARNING|Downloading|yt_dlp' /tmp/ydlp.log | tail -14 | sed -E 's@https?://[^ ]+@[url]@g' || true
+          tail -14 /tmp/ydlp.log | sed -E 's@https?://[^ ]+@[url]@g' || true
           file=$(find /tmp -maxdepth 1 -name 'youtube-cc.*' -type f | head -1)
           if [ -n "$file" ] && [ "$(stat -c%s "$file")" -gt 128 ]; then echo "ENGINE_SHOWDOWN {\"engine\":\"yt-dlp+EJS\",\"verifiedMedia\":true,\"bytes\":$(stat -c%s "$file"),\"exitCode\":$code}"; else echo "ENGINE_SHOWDOWN {\"engine\":\"yt-dlp+EJS\",\"verifiedMedia\":false,\"exitCode\":$code}"; fi
   wasm-node:
