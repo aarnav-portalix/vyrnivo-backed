@@ -5,6 +5,19 @@
  * This initial pilot intentionally supports one short excerpt, not general downloads.
  */
 const EXAMPLES=new Map([
+ ['jNQXAC9IVRw',Object.freeze({
+   mediaUrl:'https://upload.wikimedia.org/wikipedia/commons/e/e0/Me_at_the_zoo.webm',
+   videoTitle:'Me at the zoo — full 19-second video',
+   description:'A separately hosted full 19-second Creative Commons copy of Me at the zoo, not a file retrieved from YouTube.',
+   originalYoutubeId:'jNQXAC9IVRw',
+   sourcePage:'https://commons.wikimedia.org/wiki/File:Me_at_the_zoo.webm',
+   license:'Creative Commons Attribution 3.0',
+   licenseUrl:'https://creativecommons.org/licenses/by/3.0/',
+   attribution:'Jawed Karim and Yakov Lapitsky',
+   transformed:'Converted by Vyrnivo from a separately hosted Wikimedia Commons file.',
+   durationSeconds:19,
+   alternateVersion:true
+ })],
  ['aqz-KE-bpKQ',Object.freeze({
    mediaUrl:'https://upload.wikimedia.org/wikipedia/commons/3/3b/Big_Buck_Bunny_extract.ogv',
    videoTitle:'Big Buck Bunny — 33-second excerpt',
