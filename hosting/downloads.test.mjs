@@ -18,11 +18,15 @@ test('Instagram MP4 selection permits unreported resolution and a generic best f
  assert.equal(format,'best[height<=?720]/bestvideo*[height<=?720]+bestaudio/best');
  assert.equal(args.includes('--remux-video'),true);
 });
-test('fast 720p progressive MP4 is preferred when available',()=>{
- const a=argumentsFor({...input,quality:'720p'},'/tmp/fast');
- const f=a[a.indexOf('-f')+1];
- assert.equal(f.startsWith('best[ext=mp4][height<=720]/'),true);
- assert.equal(f.includes('bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]'),true);
+test('720p selects separate HD MP4 video and M4A audio before low-res progressive fallback',()=>{
+ const args=argumentsFor({...input,quality:'720p'},'/tmp/hd');
+ const f=args[args.indexOf('-f')+1];
+ assert.equal(f.startsWith('bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/'),true);
+ assert.equal(f.includes('/bestvideo[height<=720]+bestaudio'),true);
+ assert.equal(args[args.indexOf('--extractor-retries')+1],'2');
+ assert.equal(args[args.indexOf('--retries')+1],'2');
+ assert.equal(args[args.indexOf('--fragment-retries')+1],'2');
+ assert.equal(args.includes('--js-runtimes'),true);
  for(const url of ['https://music.youtube.com/watch?v=BaW_jenozKc','https://www.youtube-nocookie.com/embed/BaW_jenozKc'])assert.doesNotThrow(()=>validate({...input,url}));
 });
 test('completed job exposes and streams exact prepared bytes',async()=>{const bytes=Buffer.from('fixture-media-bytes');const manager=await createDownloads({enabled:true,spawnProcess:(cmd,args)=>{const p=new EventEmitter();p.stderr=new EventEmitter();p.kill=()=>{};queueMicrotask(async()=>{await writeFile(args[args.indexOf('-o')+1].replace('%(ext)s','mp4'),bytes);p.emit('close',0)});return p}});try{let result;const req=Readable.from([Buffer.from(JSON.stringify(input))]);req.method='POST';const res={writeHead(s){this.status=s},end(v){result=JSON.parse(v)}};await manager.handle(req,res,'/api/downloads');assert.equal(res.status,202);const id=result.id;for(let i=0;i<50;i++){await new Promise(r=>setTimeout(r,10));await manager.handle({method:'GET'},res,'/api/downloads/'+id);if(result.state!=='processing')break}assert.equal(result.state,'ready');assert(result.expiresAt>Date.now()+590000);const stream=new PassThrough();stream.writeHead=(status,headers)=>{assert.equal(status,200);assert.equal(headers['content-length'],bytes.length)};const chunks=[];stream.on('data',c=>chunks.push(c));const complete=new Promise(r=>stream.on('end',r));await manager.handle({method:'GET'},stream,'/api/downloads/'+id+'/file');await complete;assert.deepEqual(Buffer.concat(chunks),bytes)}finally{manager.close()}});
