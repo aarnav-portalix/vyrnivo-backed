@@ -1,0 +1,20 @@
+name: Instagram real-download spot check
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/instagram-spot-check.yml
+      - scripts/instagram-spot-check.mjs
+permissions:
+  contents: read
+jobs:
+  spot-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/instagram-spot-check.mjs
