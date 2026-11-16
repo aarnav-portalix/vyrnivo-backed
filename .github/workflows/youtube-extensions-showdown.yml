@@ -34,7 +34,7 @@ jobs:
           cd /tmp/yt-stream-ext
           npm install --no-save puppeteer-core@latest >/dev/null
           cp "$GITHUB_WORKSPACE/scripts/extension-browser-probe.mjs" ./browser-probe.mjs
-          timeout 75s node browser-probe.mjs ./dist
+          VYR_HEADED=1 xvfb-run -a timeout 85s node browser-probe.mjs ./dist
   avi-extension:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -58,5 +58,5 @@ jobs:
           npm init -y >/dev/null
           npm install puppeteer-core@latest >/dev/null
           cp "$GITHUB_WORKSPACE/scripts/extension-browser-probe.mjs" ./probe.mjs
-          timeout 90s node probe.mjs /tmp/avi12-ext/.output/chrome-mv3
+          VYR_HEADED=1 xvfb-run -a timeout 85s node probe.mjs /tmp/avi12-ext/.output/chrome-mv3
 
