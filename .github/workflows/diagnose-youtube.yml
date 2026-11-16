@@ -1,0 +1,58 @@
+name: Diagnose live YouTube downloading
+on:
+  pull_request:
+    paths:
+      - .github/workflows/diagnose-youtube.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test public Render deployment against one non-private yt-dlp test clip
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://vyrnivo-downloads.onrender.com';
+          const timed=async(path,init={})=>{
+            const response=await fetch(base+path,{...init,signal:AbortSignal.timeout(25000)});
+            const body=await response.text();
+            let data;try{data=JSON.parse(body)}catch{data={error:body.slice(0,240)}}
+            return {status:response.status,data};
+          };
+          try{
+            const health=await timed('/health');
+            console.log('LIVE_HEALTH',JSON.stringify(health));
+            const status=await timed('/api/downloads/status');
+            console.log('LIVE_STATUS',JSON.stringify(status));
+            if(health.status!==200 || status.status!==200 || !status.data.enabled){
+              console.log('RESULT: SERVICE_UNAVAILABLE'); process.exit(0);
+            }
+            const input={url:'https://www.youtube.com/watch?v=BaW_jenozKc',mode:'Video + audio',quality:'720p',container:'MP4'};
+            const first=await timed('/api/downloads',{
+              method:'POST',
+              headers:{Origin:base,'Content-Type':'application/json'},
+              body:JSON.stringify(input)
+            });
+            console.log('LIVE_SUBMIT',JSON.stringify(first));
+            if(!first.data.id){console.log('RESULT: REQUEST_REJECTED',first.status,first.data.code||'unknown');process.exit(0)}
+            let job=first.data;
+            for(let n=0;n<45 && job.state==='processing';n++){
+              await new Promise(resolve=>setTimeout(resolve,2000));
+              const r=await timed('/api/downloads/'+job.id);
+              if(r.status!==200){console.log('RESULT: POLL_FAILED',JSON.stringify(r));process.exit(0)}
+              job=r.data;
+            }
+            console.log('LIVE_JOB',JSON.stringify({state:job.state,failureCode:job.failureCode,error:job.error,bytes:job.bytes,downloadUrl:job.downloadUrl}));
+            if(job.state==='ready'&&job.downloadUrl){
+              const check=await fetch(base+job.downloadUrl,{signal:AbortSignal.timeout(25000)});
+              const reader=check.body?.getReader();const piece=await reader?.read();await reader?.cancel();
+              console.log('RESULT:',check.ok&&piece?.value?.byteLength?'MEDIA_BYTES_CONFIRMED':'FILE_FAILED');
+            }else console.log('RESULT:',job.failureCode||job.state||'UNKNOWN');
+          }catch(error){console.log('RESULT: NETWORK_OR_TEST_FAILURE',String(error?.message||error))}
+          JS
