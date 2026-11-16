@@ -7,6 +7,10 @@ test('container choices prefer compatible streams and preserve audio-only behavi
  const video=argumentsFor({...input,mode:'Video only'},'/tmp/job');assert(video[video.indexOf('-f')+1].includes('bestvideo[ext=mp4][height<=1080]/bestvideo[height<=1080]'));
  const audio=argumentsFor({...input,mode:'Audio only',container:'MP3'},'/tmp/job');assert.equal(audio[audio.indexOf('-f')+1],'bestaudio/best');assert(audio.includes('--audio-format'));assert(audio.includes('mp3'));
 });
+test('unknown Instagram Reel duration is allowed but known long videos remain limited',()=>{
+ const args=argumentsFor({...input,url:'https://www.instagram.com/reel/ABCdef1234/'},'/tmp/reel');
+ assert.equal(args[args.indexOf('--match-filter')+1],'duration <=? 1800');
+});
 test('fast 720p progressive MP4 is preferred when available',()=>{
  const a=argumentsFor({...input,quality:'720p'},'/tmp/fast');
  const f=a[a.indexOf('-f')+1];
