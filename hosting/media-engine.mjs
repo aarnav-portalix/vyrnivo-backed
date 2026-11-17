@@ -61,8 +61,8 @@ function runOnce(source,target,format,{copy=false,spawnProcess=spawn,onProgress=
      if(!found)continue;
      const current=Number(found[1])/1_000_000;
      if(Number.isFinite(current)&&current>=0&&durationSeconds>0){
-      const percentage=Math.min(98,Math.max(36,Math.round(35+60*current/Math.min(120,durationSeconds))));
-      onProgress({progressPercent:percentage,stage:copy?'Finishing file':'Converting media'});
+      const percentage=Math.max(0,Math.min(100,Math.round(current/Math.min(120,durationSeconds)*100)));
+      onProgress({progressPercent:percentage,progressSource:'media-timeline',estimatedSecondsRemaining:null,stage:copy?'Copying media streams':'Converting media'});
      }
     }
    });
@@ -83,14 +83,14 @@ export async function convertMedia(source,target,format,{spawnProcess=spawn,onPr
  const duration=Number(info?.format?.duration);
  const durationSeconds=Number.isFinite(duration)&&duration>0?Math.min(duration,120):120;
  const mode=selectConversion(info,format);
- onProgress({stage:mode==='copy'?'Fast-copying compatible media':'Converting media',progressPercent:35,estimatedTotalSeconds:mode==='copy'?22:85});
+ onProgress({stage:mode==='copy'?'Fast-copying compatible media':'Converting media',progressPercent:null,progressSource:null,estimatedSecondsRemaining:null});
  if(mode==='copy'){
   try{
    await runOnce(source,target,format,{copy:true,spawnProcess,onProgress,durationSeconds});
    return {method:'stream-copy',durationSeconds};
   }catch{
    await rm(target,{force:true});
-   onProgress({stage:'Converting with compatible settings',progressPercent:35,estimatedTotalSeconds:85});
+   onProgress({stage:'Converting with compatible settings',progressPercent:null,progressSource:null,estimatedSecondsRemaining:null});
   }
  }
  await runOnce(source,target,format,{copy:false,spawnProcess,onProgress,durationSeconds});
