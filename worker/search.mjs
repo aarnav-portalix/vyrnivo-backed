@@ -3,6 +3,7 @@
  * No credentials, no account data, no bypassing source access limits.
  * Parsed results are navigational links; they are NOT download guarantees.
  */
+import {officialYouTubeSearch} from './youtube-official.mjs';
 const cache=new Map();
 export const YOUTUBE_TYPES=Object.freeze({
  all:'',videos:'EgIQAQ==',shorts:'EgIQCQ==',channels:'EgIQAg==',playlists:'EgIQAw=='
@@ -47,6 +48,12 @@ export function extractYouTubeSearchData(html){
 }
 export function parseYouTubeItems(data,kind='all'){
  const all=[],seen=new Set();let visited=0;
+ // Read actual search-results containers only, not recommendations elsewhere
+ // in the page's hydrated JSON tree.
+ const root=data?.contents?.twoColumnSearchResultsRenderer?.primaryContents||
+  data?.contents?.sectionListRenderer||data?.contents?.richGridRenderer||
+  (Array.isArray(data?.contents)?data.contents:null);
+ if(!root)return [];
  const add=item=>{
   if(!item?.url||!item.id||seen.has(item.kind+':'+item.id))return;
   seen.add(item.kind+':'+item.id);
@@ -59,7 +66,7 @@ export function parseYouTubeItems(data,kind='all'){
   if(v&&validVideoId(v.videoId)){
    const url=String(v.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url||'');
    const isShort=url.startsWith('/shorts/')||Boolean(v.navigationEndpoint?.reelWatchEndpoint);
-   const k=(kind==='shorts'||isShort)?'short':'video';
+   const k=isShort?'short':'video';
    add({id:v.videoId,kind:k,url:k==='short'?'https://www.youtube.com/shorts/'+v.videoId:'https://www.youtube.com/watch?v='+v.videoId,
     title:plain(v.title)||'YouTube video',creator:plain(v.ownerText)||plain(v.longBylineText),
     duration:plain(v.lengthText),views:plain(v.viewCountText),published:plain(v.publishedTimeText),
@@ -115,37 +122,78 @@ export function parseYouTubeItems(data,kind='all'){
   }
   for(const value of Object.values(obj))visit(value);
  };
- visit(data);
+ visit(root);
  const accepted=kind==='shorts'?['short']:kind==='channels'?['channel']:kind==='playlists'?['playlist']:kind==='videos'?['video']:['video','short','channel','playlist'];
  return all.filter(item=>accepted.includes(item.kind)).slice(0,30);
 }
-export async function search(request,{fetchImpl=fetch,now=Date.now}={}){
+function directYouTubeLink(query){
+ try{
+  const u=new URL(query);
+  if(u.protocol!=='https:'||u.username||u.password)return null;
+  const host=u.hostname.replace(/^www\./,'');
+  let id=null,short=false;
+  if(host==='youtu.be')id=u.pathname.split('/').filter(Boolean)[0];
+  if(['youtube.com','m.youtube.com','music.youtube.com'].includes(host)){
+   if(u.pathname==='/watch')id=u.searchParams.get('v');
+   else{
+    const match=u.pathname.match(/^\/(shorts|live)\/([A-Za-z0-9_-]{11})\/?$/);
+    if(match){id=match[2];short=match[1]==='shorts'}
+   }
+  }
+  if(!validVideoId(id))return null;
+  return {id,kind:short?'short':'video',
+   url:short?'https://www.youtube.com/shorts/'+id:'https://www.youtube.com/watch?v='+id,
+   title:short?'YouTube Short '+id:'YouTube video '+id,creator:'Direct link',source:'User-provided link',
+   thumbnail:'https://i.ytimg.com/vi/'+id+'/hqdefault.jpg',matchType:'direct-link'};
+ }catch{return null}
+}
+export async function search(request,{fetchImpl=fetch,now=Date.now,apiKey=null}={}){
  const url=new URL(request.url);
  const query=(url.searchParams.get('q')||'').trim();
  const kind=url.searchParams.get('kind')||'all';
  const json=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store'}});
- if(query.length<2||query.length>120)return json({error:'Enter between 2 and 120 characters.'},400);
+ if(query.length<2||query.length>240)return json({error:'Enter 2–240 characters or a public YouTube link.'},400);
  if(!(kind in YOUTUBE_TYPES))return json({error:'Choose a supported search type.'},400);
- const key=kind+'|'+query.toLowerCase(),hit=cache.get(key);
- if(hit&&now()-hit.time<180000)return json(hit.data);
  const destination=new URL('https://www.youtube.com/results');
  destination.searchParams.set('search_query',query);
  if(YOUTUBE_TYPES[kind])destination.searchParams.set('sp',YOUTUBE_TYPES[kind]);
+ const direct=directYouTubeLink(query);
+ if(direct){
+  const items=(kind==='all'||kind==='videos'&&direct.kind==='video'||kind==='shorts'&&direct.kind==='short')?[direct]:[];
+  return json({items,query,kind,searchUrl:direct.url,matchType:'direct-link',
+   notice:items.length?'Exact YouTube link entered. Playback and download availability are controlled by YouTube.':
+    'The supplied link does not match this result filter. Change to All or Videos.'});
+ }
+ const cacheKey=(apiKey?'official|':'public|')+kind+'|'+query.toLowerCase();
+ const hit=cache.get(cacheKey);
+ if(hit&&now()-hit.time<(hit.data.items.length?90000:18000))return json(hit.data);
+ if(apiKey&&kind!=='shorts'){
+  const official=await officialYouTubeSearch({query,kind,apiKey,fetchImpl});
+  if(official){
+   const data={items:official.items,query,kind,searchUrl:destination.href,
+    matchType:'official-search',source:'YouTube API',
+    notice:official.items.length?'Matching YouTube search listings. Results can differ from your personalized YouTube search.':
+     'No public results matched this filter. Open YouTube to search with your own account settings.'};
+   if(cache.size>140)cache.clear();cache.set(cacheKey,{data,time:now()});
+   return json(data);
+  }
+ }
  try{
-  const r=await fetchImpl(destination.href,{redirect:'error',signal:AbortSignal.timeout(12000)});
-  if(!r.ok)throw Error('unavailable');
+  const r=await fetchImpl(destination.href,{redirect:'error',signal:AbortSignal.timeout(11000),
+   headers:{Accept:'text/html'}});
+  if(!r.ok)throw Error('source-unavailable');
   const html=(await r.text()).slice(0,4_000_000);
-  const data=extractYouTubeSearchData(html);
-  if(!data)throw Error('unavailable');
-  const items=parseYouTubeItems(data,kind);
-  const result={items,query,kind,source:'public YouTube search',
-   searchUrl:destination.href,
-   notice:items.length?'Public YouTube search matches. Playback and download availability depend on the uploader and YouTube.':
-   'No matching public results were returned for this filter. Open the search on YouTube to see its complete results.'};
-  if(cache.size>120)cache.clear();cache.set(key,{data:result,time:now()});
-  return json(result);
+  const raw=extractYouTubeSearchData(html);
+  if(!raw)throw Error('source-unavailable');
+  const items=parseYouTubeItems(raw,kind);
+  const data={items,query,kind,source:'YouTube public search page',
+   searchUrl:destination.href,matchType:'public-page',
+   notice:items.length?'Public YouTube results. Your own YouTube search may differ by account, region or availability.':
+    'No trustworthy matching results were returned. Open YouTube to see its native search results.'};
+  if(cache.size>140)cache.clear();cache.set(cacheKey,{data,time:now()});
+  return json(data);
  }catch{
-  return json({items:[],query,kind,searchUrl:destination.href,
-   notice:'YouTube search could not be reached from this server. Open the original search instead.'});
+  return json({items:[],query,kind,searchUrl:destination.href,matchType:'unavailable',
+   notice:'YouTube results could not be fetched right now. Open this exact search directly on YouTube.'});
  }
 }
