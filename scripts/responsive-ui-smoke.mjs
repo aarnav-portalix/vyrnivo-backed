@@ -87,7 +87,14 @@ try{
    const instagramHref=await page.getByRole('link',{name:/Search on Instagram/}).getAttribute('href');
    assert.match(instagramHref,/instagram\.com\/explore\/search\/keyword/);
    assert.equal(calls.at(-1).platform,'instagram');
-   console.log('DISCOVER_FILTERS_BROWSER_OK',JSON.stringify({device,requests:calls.length,searchPreserved:true,nativeLinks:true}));
+   await page.getByRole('button',{name:/Use link/}).first().click();
+   assert.equal(await page.getByRole('textbox',{name:'Video URL'}).inputValue(),
+    'https://www.instagram.com/reel/Abc123def/');
+   await page.locator('.tabs .tab').filter({hasText:'Discover'}).click();
+   await page.getByText('Wildlife facts').first().waitFor();
+   console.log('DISCOVER_FILTERS_BROWSER_OK',JSON.stringify({
+    device,requests:calls.length,searchPreserved:true,nativeLinks:true,
+    downloadAndReturnKeepsResults:true}));
   }
   await page.screenshot({path:'responsive-artifacts/'+device+'-discover.png',fullPage:true,animations:'disabled'});
   const scroll=await page.evaluate(()=>({inner:window.innerWidth,scroll:document.documentElement.scrollWidth}));
