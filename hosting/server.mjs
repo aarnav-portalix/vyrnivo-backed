@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {createDownloads} from './downloads.mjs';
+import {lookupPublicTitle} from './download-names.mjs';
 import {createConverter} from './converter.mjs';
 import {createPresence} from './presence.mjs';
 import {allowApi} from './access.mjs';
@@ -18,7 +19,7 @@ if(humanCheck.incomplete)console.warn('Turnstile setup incomplete; challenge sta
 const ownedEngineConfig=validateOwnedEngineConfig(env.OWN_DOWNLOADER_URL||'',env.OWN_DOWNLOADER_TOKEN||'');
 if((env.OWN_DOWNLOADER_URL||env.OWN_DOWNLOADER_TOKEN)&&!ownedEngineConfig)
  console.warn('Private download engine configuration is incomplete or invalid; preserving existing downloaders.');
-const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify,ownedEngineConfig});
+const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify,ownedEngineConfig,lookupTitle:lookupPublicTitle});
 let privateApi;
 const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true',onFinished:event=>privateApi?.notify(event)});
 privateApi=createPrivateConversionApi({
