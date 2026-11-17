@@ -1,0 +1,21 @@
+name: Verify Vyrnivo clean startup and real progress
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-clean-ui-check.mjs
+      - .github/workflows/live-clean-ui-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deployed clean UI and cloud protections
+        run: node scripts/live-clean-ui-check.mjs
