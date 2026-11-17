@@ -16,10 +16,12 @@ assert.match(icon,/linearGradient/);
 assert.match(js,/Frequently asked questions/);
 assert.match(js,/Do YouTube downloads work/);
 assert.match(css,/\.faq-item/);
-for(const label of ['Our Engine','Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','BUILT BY AARNAV','One quick security check']){
+for(const label of ['Discover','Main engine','Backup engine','Open Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Built by Aarnav','One quick security check','No reliable completion estimate available yet']){
  assert.ok(js.includes(label),'Live app is missing '+label);
 }
 assert.doesNotMatch(js,/WebDownloader|yt-dlp/, 'Public UI should not reveal downloader implementation');
+assert.doesNotMatch(js,/Our own engine\./,'Retired Our Engine page should be gone');
+assert.doesNotMatch(js,/About <b>.*<\/b> left/,'No fabricated fixed countdown');
 assert.ok(css.includes('.legal-center'),'Live CSS must style policies');
 assert.ok(css.includes('.discover-hub'),'Live CSS must style Discover');
 const homepage=await fetch(base+'/',{signal:AbortSignal.timeout(20000)});
@@ -51,4 +53,4 @@ const search=await fetch(base+'/api/search/instagram?q='+encodeURIComponent('rob
 assert.equal(search.status,200);
 const data=await search.json();
 assert.ok(Array.isArray(data.items),'Instagram results must be an array');
-console.log('LIVE_UI_OK',JSON.stringify({fourTabs:true,privacyAndTerms:true,privateEngineLabels:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,securityHeaders:true,botConfigEnabled:botConfig.enabled,instagramResults:data.items.length}));
+console.log('LIVE_UI_OK',JSON.stringify({threeTabs:true,privacyAndTerms:true,privateEngineLabels:true,unifiedInstagram:true,responsiveCSS:true,customLogo:true,faqs:true,liquidGlass:true,securityHeaders:true,botConfigEnabled:botConfig.enabled,instagramResults:data.items.length}));
