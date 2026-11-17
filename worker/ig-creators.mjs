@@ -71,7 +71,14 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
   if(!seen.has(item.id)){seen.add(item.id);items.push(item)}
   if(items.length>=24)break;
  }
- const data={items:items.slice(0,24),kind:'creators',query,searchUrl:fallback,
+ // A handle-like query can be offered as a navigation suggestion, never as an
+ // indexed or verified result. The profile may not exist or may be private.
+ const handleQuery=query.replace(/^@/,'');
+ const suggestion=/^[A-Za-z0-9._]{2,30}$/.test(handleQuery)?
+   canonicalInstagramProfile('https://www.instagram.com/'+handleQuery+'/'):null;
+ const suggestedProfile=suggestion&&!seen.has(suggestion.id)?
+   {...suggestion,title:'@'+suggestion.username,source:'Unverified handle suggestion',verified:false}:null;
+ const data={items:items.slice(0,24),kind:'creators',query,searchUrl:fallback,suggestedProfile,
   notice:items.length?
    'Profiles found in public search indexes. Open Instagram to confirm the account; private or unindexed profiles may be missing.':
    'No indexed public creator profiles were returned. Open the web search or try a precise @username. Results cannot be guaranteed without official access.'};
