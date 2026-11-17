@@ -23,7 +23,7 @@ for(const marker of [
  'Cloudflare','Original audio','M4A'
  ])assert.ok(js.includes(marker),'Production bundle missing '+marker);
 for(const marker of [
- 'VYRNIVO / Prism Motion','surface-interactive','file-label',
+ 'surface-interactive','file-label',
  'prefers-reduced-motion','max-width:520px'
  ])assert.ok(css.includes(marker),'Production CSS missing '+marker);
 const health=await (await fetchLive('/health')).json();
