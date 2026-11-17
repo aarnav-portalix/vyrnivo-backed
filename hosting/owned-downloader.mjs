@@ -20,11 +20,12 @@ export class OwnedEngineError extends Error{
  }
 }
 
-export function validateOwnedEngineConfig(raw,token){
+export function validateOwnedEngineConfig(raw,token,{selfOrigin='https://vyrnivo-downloads.onrender.com'}={}){
  if(!raw||!token)return null;
  try{
   const u=new URL(raw);
   const h=u.hostname.toLowerCase();
+  if(u.origin===selfOrigin)return null; // Prevent accidentally configuring the public frontend as its own worker.
   if(u.protocol!=='https:'||u.port||u.username||u.password||u.search||u.hash||
      u.pathname!=='/'||isIP(h)||!h.includes('.')||
      h==='localhost'||h.endsWith('.local')||h.endsWith('.localhost')||
