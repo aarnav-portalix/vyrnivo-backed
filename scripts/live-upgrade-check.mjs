@@ -14,7 +14,7 @@ for(let i=0;i<35;i++){
   const app=await get('/app.js');
   if(app.ok){
    const code=await app.text();
-   if(code.includes('Time remaining is an estimate')&&code.includes('Calculating time')){
+   if(code.includes('No reliable completion estimate available yet')&&code.includes('Checking progress')){
     deployed=true;break;
    }
   }
