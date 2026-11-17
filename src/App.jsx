@@ -230,7 +230,7 @@ function App(){
   return()=>{alive=false;clearInterval(interval)}
  },[job?.id,job?.state,job?.engine]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
- const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
+ const nav=next=>{if(!pages.includes(next))return;if(next!==page){searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
  const resetSearchView=()=>{searchAbort.current?.abort();setSearching(false);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setIndexedSearchUrl('');setSuggestedProfile(null)};
  const switchSearchSource=next=>{
