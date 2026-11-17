@@ -86,6 +86,7 @@ function App(){
  const [searchSource,setSearchSource]=useState('youtube');
  const [searchKind,setSearchKind]=useState('all');
  const [searchUrl,setSearchUrl]=useState('');
+ const [suggestedProfile,setSuggestedProfile]=useState(null);
  const [job,setJob]=useState(()=>saved('dw3lastJob',null));
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
@@ -166,7 +167,7 @@ function App(){
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
- const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('')};
+ const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
  const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('')};
  const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
@@ -244,12 +245,12 @@ function App(){
   e?.preventDefault?.();
   const q=query.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
   searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;
-  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);
+  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);setSuggestedProfile(null);
   try{
    const r=await fetch('/api/search/'+searchSource+'?q='+encodeURIComponent(q)+'&kind='+encodeURIComponent(searchKind),{signal:controller.signal});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Search unavailable.');
-   setResults(data.items||[]);setSearchNote(data.notice||'');setSearchUrl(data.searchUrl||'');
+   setResults(data.items||[]);setSearchNote(data.notice||'');setSearchUrl(data.searchUrl||'');setSuggestedProfile(data.suggestedProfile||null);
   }catch(e){if(e.name!=='AbortError')setSearchError('Search unavailable. Try again.')}
   finally{if(searchAbort.current===controller)setSearching(false)}
  }
@@ -384,7 +385,7 @@ function App(){
      {!!searchNote&&searched&&<p className="search-source-note" role="status">{searchNote} {searchUrl&&<a href={searchUrl} target="_blank" rel="noopener noreferrer">Open original search <Icon name="external" size={13}/></a>}</p>}
      {searching&&<div className="search-loading" role="status"><span className="loading-spinner"/> Searching…</div>}
      {!searching&&searched&&<div className="result-heading"><span>{results.length?results.length+' results for “'+searched+'”':'Results for “'+searched+'”'}</span>{results.length>0&&<button type="button" onClick={()=>{setResults([]);setSearched('');setQuery('')}}>Clear</button>}</div>}
-     {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={28}/><strong>No accessible results returned</strong><p>Try another search term, use a different filter, or open the source website's complete search.</p>{searchUrl&&<a href={searchUrl} target="_blank" rel="noopener noreferrer">Open original search <Icon name="external" size={15}/></a>}</div>}
+     {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={28}/><strong>No indexed results returned</strong><p>Try another search term or open the source website's complete search.</p>{suggestedProfile&&<a className="profile-suggestion" href={suggestedProfile.url} target="_blank" rel="noopener noreferrer">Open possible @{suggestedProfile.username} profile (not verified) <Icon name="external" size={15}/></a>}{searchUrl&&<a href={searchUrl} target="_blank" rel="noopener noreferrer">Open original search <Icon name="external" size={15}/></a>}</div>}
      {!!results.length&&<div className="results">
       {results.map(item=><article className="media-card" key={item.kind+'-'+item.id}>
        <div className="media-image">{publicMediaKinds.has(item.kind)?<button className="media-art-action" type="button" onClick={()=>setPreview(item)} aria-label={'Preview '+item.title}>{item.thumbnail?<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>:<span className="reel-art"><Icon name={isInstagram?'instagram':'video'} size={36}/><small>{item.kind==='instagram'?'REEL':'VIDEO'}</small></span>}<span className="play-bubble"><Icon name="play" size={18}/></span></button>:<a className="media-art-action" href={item.url} target="_blank" rel="noopener noreferrer" aria-label={'Open '+item.title}>{item.thumbnail?<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>:<span className="reel-art"><Icon name={isInstagram?'instagram':'youtube'} size={34}/><small>{item.kind==='creator'?'CREATOR':item.kind==='channel'?'CHANNEL':'PLAYLIST'}</small></span>}</a>}</div>
