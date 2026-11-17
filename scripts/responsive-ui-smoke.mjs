@@ -53,6 +53,42 @@ try{
   await page.locator('.tabs .tab').filter({hasText:'Discover'}).click();
   await page.locator('.discover-filters button').filter({hasText:'Shorts'}).click();
   assert.equal(await page.locator('.discover-filters .active').innerText(),'Shorts');
+  if(device==='small-mobile'||device==='desktop'){
+   const calls=[];
+   await page.route('**/api/search/**',async route=>{
+    const u=new URL(route.request().url());
+    const kind=u.searchParams.get('kind'),platform=u.pathname.split('/').at(-1);
+    const q=u.searchParams.get('q');calls.push({platform,kind,q});
+    const item=platform==='youtube'?
+     {kind:kind==='shorts'?'short':'video',id:'BaW_jenozKc',title:'Science facts video',creator:'Science Channel',
+      url:kind==='shorts'?'https://www.youtube.com/shorts/BaW_jenozKc':'https://www.youtube.com/watch?v=BaW_jenozKc'}:
+     {kind:'instagram',id:'Abc123def',title:'Wildlife facts',creator:'@wildlife',
+      url:'https://www.instagram.com/reel/Abc123def/'};
+    await route.fulfill({status:200,contentType:'application/json',
+     body:JSON.stringify({kind,query:q,items:[item],searchUrl:platform==='youtube'?
+      'https://www.youtube.com/results?search_query='+encodeURIComponent(q):
+      'https://www.instagram.com/explore/search/keyword/?q='+encodeURIComponent(q)})});
+   });
+   const searchBox=page.getByRole('searchbox',{name:'Search YouTube'});
+   await searchBox.fill('science facts');
+   await page.getByRole('button',{name:'Search',exact:true}).click();
+   await page.getByText('Science facts video').first().waitFor();
+   assert.equal(calls.at(-1).kind,'shorts');
+   await page.locator('.discover-filters button').filter({hasText:'Videos'}).click();
+   await page.getByText('Science facts video').first().waitFor();
+   assert.equal(calls.at(-1).kind,'videos','Changing filters must automatically rerun the query');
+   assert.equal(await searchBox.inputValue(),'science facts','Filter changes must preserve the search query');
+   const nativeHref=await page.getByRole('link',{name:/Search on YouTube/}).getAttribute('href');
+   assert.match(nativeHref,/youtube\.com\/results\?/);
+   await page.getByRole('button',{name:'Instagram',exact:true}).click();
+   await page.getByRole('searchbox',{name:'Search Instagram'}).fill('wildlife');
+   await page.getByRole('button',{name:'Search',exact:true}).click();
+   await page.getByText('Wildlife facts').first().waitFor();
+   const instagramHref=await page.getByRole('link',{name:/Search on Instagram/}).getAttribute('href');
+   assert.match(instagramHref,/instagram\.com\/explore\/search\/keyword/);
+   assert.equal(calls.at(-1).platform,'instagram');
+   console.log('DISCOVER_FILTERS_BROWSER_OK',JSON.stringify({device,requests:calls.length,searchPreserved:true,nativeLinks:true}));
+  }
   await page.screenshot({path:'responsive-artifacts/'+device+'-discover.png',fullPage:true,animations:'disabled'});
   const scroll=await page.evaluate(()=>({inner:window.innerWidth,scroll:document.documentElement.scrollWidth}));
   assert.ok(scroll.scroll<=scroll.inner+3,device+' horizontal overflow: '+JSON.stringify(scroll));
