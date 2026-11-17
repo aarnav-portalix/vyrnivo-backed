@@ -31,3 +31,17 @@ for(const [source,kind,q] of cases){
  console.log('DISCOVER_SOURCE_PROBE',JSON.stringify(data));
 }
 console.log('DISCOVER_SEARCH_SUMMARY',JSON.stringify(report));
+
+for(const query of ['site:instagram.com/ national geographic','site:instagram.com/ natgeo','site:instagram.com/natgeo']){
+ const link=new URL('https://www.bing.com/search');
+ link.searchParams.set('q',query);link.searchParams.set('format','rss');
+ try{
+  const r=await fetch(link,{redirect:'error',signal:AbortSignal.timeout(8000)});
+  const xml=(await r.text()).slice(0,160000);
+  const links=[...xml.matchAll(/<item[^>]*>([\s\S]*?)<\/item>/g)].slice(0,7).map(x=>({
+   title:(x[1].match(/<title>([\s\S]*?)<\/title>/)?.[1]||'').slice(0,70),
+   href:(x[1].match(/<link>([\s\S]*?)<\/link>/)?.[1]||'').slice(0,140)
+  }));
+  console.log('INSTAGRAM_PUBLIC_INDEX_DIAG',JSON.stringify({query,status:r.status,links}));
+ }catch(e){console.log('INSTAGRAM_PUBLIC_INDEX_DIAG',JSON.stringify({query,error:String(e.message).slice(0,90)}))}
+}
