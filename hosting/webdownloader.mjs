@@ -10,6 +10,7 @@ import {pipeline} from 'node:stream/promises';
 import {join} from 'node:path';
 import {rm} from 'node:fs/promises';
 import {createTransferReporter} from './progress-metrics.mjs';
+import {titleFromContentDisposition,safeMediaTitle} from './download-names.mjs';
 
 const API='https://save.brianrianrehan.com/api/v1/download?wait=true&download=true';
 const MAX_BYTES=200*1024*1024;
@@ -84,5 +85,5 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
   if(error instanceof FreeProviderError)throw error;
   throw new FreeProviderError('The backup transfer was interrupted. Try again later.','FREE_PROVIDER_UNAVAILABLE',0);
  }
- return {path:destination,name:'media.'+extension,bytes,provider:'WebDownloader (free public API)'};
+ return {path:destination,name:'media.'+extension,bytes,sourceTitle:titleFromContentDisposition(response.headers.get('content-disposition'))||safeMediaTitle(response.headers.get('x-video-title'))||null,provider:'WebDownloader (free public API)'};
 }
