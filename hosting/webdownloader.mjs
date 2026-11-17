@@ -23,12 +23,12 @@ export class FreeProviderError extends Error {
 export function supportsFreeFallback(input){
  return Boolean(input&&(
   (input.mode==='Video + audio'&&input.container==='MP4')||
-  (input.mode==='Audio only'&&input.container==='MP3')
+  (input.mode==='Audio only'&&['MP3','M4A','WAV'].includes(input.container))
  ));
 }
 
 export function fallbackPayload(input){
- if(!supportsFreeFallback(input))throw new FreeProviderError('This free fallback only supports MP4 with sound or MP3 audio.','FREE_PROVIDER_FORMAT_UNSUPPORTED',0);
+ if(!supportsFreeFallback(input))throw new FreeProviderError('This fallback supports MP4 video or MP3, M4A and WAV audio. Original audio requires a directly accessible source.','FREE_PROVIDER_FORMAT_UNSUPPORTED',0);
  const quality=input.mode==='Audio only'?'best':input.quality==='Best available'?'best':String(input.quality||'720p').replace(/^2160p.*$/,'2160p');
  return {url:input.url,format:input.mode==='Audio only'?'audio':'video',quality,outputFormat:input.mode==='Audio only'?'mp3':'mp4'};
 }
