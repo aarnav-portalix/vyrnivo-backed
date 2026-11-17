@@ -219,3 +219,54 @@ test('a configured Vyrnivo-owned worker is used before local or public fallback'
   assert.equal(remoteCalls,3);
  }finally{manager.close()}
 });
+
+test('source-blocked audio downloads use one MP3 backup transfer then deliver requested M4A/WAV files',async()=>{
+ for(const format of ['M4A','WAV']){
+  let fetches=0,converted=0,last;
+  const manager=await createDownloads({
+   enabled:true,freeFallbackEnabled:true,
+   spawnProcess:()=>{
+    const proc=new EventEmitter();proc.stdout=new EventEmitter();proc.stderr=new EventEmitter();
+    proc.kill=()=>queueMicrotask(()=>proc.emit('close',1));
+    queueMicrotask(()=>proc.stderr.emit('data',Buffer.from('HTTP Error 429: Too Many Requests')));
+    return proc;
+   },
+   fetchImpl:async(url,init)=>{
+    fetches++;
+    assert.equal(init.method,'POST');
+    assert.equal(JSON.parse(init.body).outputFormat,'mp3');
+    return new Response(Buffer.alloc(512,0x7b),{status:200,headers:{
+     'content-type':'audio/mpeg','content-length':'512'
+    }});
+   },
+   convertAudio:async(downloaded,dir,target)=>{
+    converted++;
+    assert.equal(downloaded.name,'media.mp3');
+    assert.equal(target,format);
+    const destination=dir+'/media.'+target.toLowerCase();
+    const bytes=Buffer.alloc(333,0x53);
+    await writeFile(destination,bytes);
+    return {...downloaded,path:destination,name:'media.'+target.toLowerCase(),bytes:bytes.length,convertedLocally:true};
+   }
+  });
+  try{
+   const body={...input,mode:'Audio only',quality:'Best available',container:format};
+   const req=Readable.from([Buffer.from(JSON.stringify(body))]);req.method='POST';
+   const res={writeHead(code){this.status=code},end(raw){last=JSON.parse(raw)}};
+   await manager.handle(req,res,'/api/downloads');
+   assert.equal(res.status,202);
+   const id=last.id;
+   for(let i=0;i<90;i++){
+    await new Promise(resolve=>setTimeout(resolve,10));
+    await manager.handle({method:'GET'},res,'/api/downloads/'+id);
+    if(last.state!=='processing')break;
+   }
+   assert.equal(last.state,'ready',last.error);
+   assert.equal(last.name,'media.'+format.toLowerCase());
+   assert.equal(last.bytes,333);
+   assert.equal(last.downloadUrl,'/api/downloads/'+id+'/file');
+   assert.equal(converted,1);
+   assert.equal(fetches,1,'One external MP3 transfer should be enough');
+  }finally{manager.close()}
+ }
+});
