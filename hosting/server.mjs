@@ -47,7 +47,7 @@ const server=http.createServer(async(req,res)=>{
  if(path.startsWith('/api/downloads'))return await downloads.handle(req,res,path);
  if(path.startsWith('/api/converter'))return await converter.handle(req,res,path);
  if(req.method!=='GET')return json({error:'Method not allowed'},405);
- const r=await worker.fetch(new Request('http://localhost'+req.url),{SEARXNG_URL:env.SEARXNG_URL});res.writeHead(r.status,Object.fromEntries(r.headers));res.end(Buffer.from(await r.arrayBuffer()));
+ const r=await worker.fetch(new Request('http://localhost'+req.url),{SEARXNG_URL:env.SEARXNG_URL,YOUTUBE_DATA_API_KEY:env.YOUTUBE_DATA_API_KEY||''});res.writeHead(r.status,Object.fromEntries(r.headers));res.end(Buffer.from(await r.arrayBuffer()));
  }catch{if(!res.headersSent)json({error:'Request failed. Uploads with an uncertain outcome are held for review.'},502);else res.end()}
 });
 setInterval(()=>{for(const[k,v]of buckets)if(Date.now()-v.start>60000)buckets.delete(k)},60000).unref();
