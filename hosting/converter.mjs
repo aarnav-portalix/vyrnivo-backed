@@ -13,6 +13,7 @@ import {Readable,Transform} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {licensedSourceForYoutube} from './licensed-youtube.mjs';
 import {findCommonsAlternatives} from './commons-discovery.mjs';
+import {convertMedia} from './media-engine.mjs';
 
 const SOURCE_HOSTS=new Set([
  'interactive-examples.mdn.mozilla.net',
@@ -52,7 +53,7 @@ export function validateConversion(input){
  return {url:url.href,extension:ext,output};
 }
 
-async function downloadAllowedFile(url,path,{fetchImpl=fetch}={}){
+async function downloadAllowedFile(url,path,{fetchImpl=fetch,onProgress=()=>{}}={}){
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),35000);
  try{
@@ -63,10 +64,11 @@ async function downloadAllowedFile(url,path,{fetchImpl=fetch}={}){
   if(!/^(video|audio)\//.test(mime)&&mime!=='application/octet-stream'&&mime!=='application/ogg')throw Error('This link did not return a video or audio file.');
   const announced=Number(response.headers.get('content-length'));
   if(Number.isFinite(announced)&&announced>MAX_INPUT_BYTES)throw Error('Source file exceeds the 30 MB converter limit.');
-  let received=0;
+  let received=0,lastReport=0;
   const limiter=new Transform({
    transform(chunk,encoding,callback){
     received+=chunk.length;
+    if(Date.now()-lastReport>200){lastReport=Date.now();onProgress({stage:'Receiving media',progressPercent:Number.isFinite(announced)&&announced>0?Math.min(32,Math.round(5+27*received/announced)):10})}
     if(received>MAX_INPUT_BYTES)callback(Error('Source file exceeds the 30 MB converter limit.'));
     else callback(null,chunk);
    }
@@ -80,32 +82,7 @@ async function downloadAllowedFile(url,path,{fetchImpl=fetch}={}){
  }finally{clearTimeout(timeout)}
 }
 
-function ffmpegArgs(source,target,format){
- const base=['-hide_banner','-nostdin','-loglevel','error','-y','-i',source,'-t','120'];
- if(format==='MP3')return [...base,'-map','0:a:0','-vn','-codec:a','libmp3lame','-q:a','4','-fs',String(MAX_OUTPUT_BYTES),target];
- return [...base,'-map','0:v:0','-map','0:a:0?','-codec:v','libx264','-preset','ultrafast','-crf','29','-pix_fmt','yuv420p','-codec:a','aac','-b:a','128k','-movflags','+faststart','-fs',String(MAX_OUTPUT_BYTES),target];
-}
-async function runFfmpeg(source,target,format,{spawnProcess=spawn}={}){
- await new Promise((resolve,reject)=>{
-  const child=spawnProcess('ffmpeg',ffmpegArgs(source,target,format),{stdio:['ignore','ignore','pipe']});
-  let errorOutput='';
-  child.stderr?.on('data',d=>{errorOutput=(errorOutput+d).slice(-600)});
-  let timedOut=false;
-  const timer=setTimeout(()=>{timedOut=true;child.kill('SIGKILL')},MAX_RUNTIME_MS);
-  const clear=()=>clearTimeout(timer);
-  child.on('error',e=>{clear();reject(Error('Media converter is unavailable: '+e.code))});
-  child.on('close',code=>{
-   clear();
-   if(code===0)resolve();
-   else if(timedOut)reject(Error('The conversion exceeded the 2-minute server limit.'));
-   else reject(Error(/Stream map.*matches no streams|matches no streams|does not contain any stream/i.test(errorOutput)
-    ? 'The source does not contain the media needed for this output format.'
-    : 'This media format could not be converted. Try a different direct media file.'));
-  });
- });
-}
-
-export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetch,spawnProcess=spawn}={}){
+export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetch,spawnProcess=spawn,onFinished=()=>{}}={}){
  const root=join(tmpdir(),'vyrnivo-converter');
  const jobs=new Map();
  const discoveryCache=new Map();
@@ -135,7 +112,16 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
   discoveryCache.set(cacheKey,{response,expiresAt:now()+300000});
   return response;
  };
- const publicJob=j=>({id:j.id,engine:'converter',state:j.state,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,bytes:j.bytes||0,sourceMetadata:j.sourceMetadata||null,downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null});
+ const publicJob=j=>{
+  const elapsedSeconds=Math.max(0,Math.floor((now()-j.createdAt)/1000));
+  const estimate=j.state==='processing'&&Number.isFinite(j.estimatedTotalSeconds)
+    ?Math.max(0,Math.ceil(j.estimatedTotalSeconds-elapsedSeconds)):null;
+  return {id:j.id,engine:'converter',state:j.state,createdAt:j.createdAt,elapsedSeconds,
+   stage:j.stage||null,progressPercent:j.progressPercent??null,estimatedSecondsRemaining:estimate,
+   estimateIsApproximate:true,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,
+   bytes:j.bytes||0,sourceMetadata:j.sourceMetadata||null,
+   downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null};
+ };
  const clean=async()=>{
   for(const [id,value] of discovered)if(now()>=value.expiresAt)discovered.delete(id);
   for(const [key,value] of discoveryCache)if(now()>=value.expiresAt)discoveryCache.delete(key);
@@ -150,18 +136,23 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
    await mkdir(j.dir,{recursive:true,mode:0o700});
    const source=join(j.dir,'input.'+input.extension);
    const out=join(j.dir,'vyrnivo-converted.'+input.output.toLowerCase());
-   await downloadAllowedFile(input.url,source,{fetchImpl});
-   await runFfmpeg(source,out,input.output,{spawnProcess});
+   await downloadAllowedFile(input.url,source,{fetchImpl,onProgress:p=>Object.assign(j,p)});
+   j.progressPercent=Math.max(35,j.progressPercent||0);j.stage='Inspecting media';
+   const result=await convertMedia(source,out,input.output,{spawnProcess,onProgress:p=>Object.assign(j,p)});
+   j.method=result.method;
    await rm(source,{force:true});
    const info=await stat(out);
    if(!info.size||info.size>MAX_OUTPUT_BYTES)throw Error('Converted file exceeds the 80 MB server limit.');
    j.bytes=info.size;j.name='vyrnivo-converted.'+input.output.toLowerCase();j.file=out;j.sourceMetadata=input.sourceMetadata||null;
-   j.expiresAt=now()+RETENTION_MS;j.state='ready';
+   j.expiresAt=now()+RETENTION_MS;j.state='ready';j.stage='Ready';j.progressPercent=100;
   }catch(e){
    console.error('converter_failure',String(e?.message||e).slice(0,240));
-   j.error=String(e?.message||'Conversion failed');j.state='failed';
+   j.error=String(e?.message||'Conversion failed');j.state='failed';j.stage='Could not finish';
    await rm(j.dir,{recursive:true,force:true});
-  }finally{active=false}
+  }finally{
+   active=false;
+   try{void Promise.resolve(onFinished({id:j.id,state:j.state,bytes:j.bytes||0,completedAt:now(),method:j.method||null})).catch(()=>{})}catch{}
+  }
  }
  return {
   enabled,sweep:clean,close(){clearInterval(timer)},
@@ -190,7 +181,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
     }catch(e){return send({error:e.message},400)}
     if(active)return send({error:'Another media file is being converted. Try again shortly.'},429);
     const id=randomUUID();
-    const j={id,dir:join(root,id),createdAt:now(),state:'processing',sourceMetadata:input.sourceMetadata||null};
+    const j={id,dir:join(root,id),createdAt:now(),state:'processing',stage:'Connecting to source',progressPercent:5,estimatedTotalSeconds:65,sourceMetadata:input.sourceMetadata||null};
     jobs.set(id,j);active=true;
     void execute(j,input);
     return send(publicJob(j),202);
