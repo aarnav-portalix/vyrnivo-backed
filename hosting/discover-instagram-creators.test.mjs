@@ -54,3 +54,12 @@ test('index restrictions produce a truthful empty list rather than invented crea
  assert.deepEqual(json.items,[]);
  assert.match(json.notice,/No indexed public creator profiles/);
 });
+
+test('a precise @handle is offered only as an explicitly unverified profile suggestion',async()=>{
+ const response=await searchInstagramCreators(new Request('https://vyrnivo.test/api/search/instagram?q=%40natgeo&kind=creators'),{fetchImpl:async()=>new Response('unavailable',{status:429})});
+ const data=await response.json();
+ assert.deepEqual(data.items,[]);
+ assert.equal(data.suggestedProfile.url,'https://www.instagram.com/natgeo/');
+ assert.equal(data.suggestedProfile.verified,false);
+ assert.equal(data.suggestedProfile.source,'Unverified handle suggestion');
+});
