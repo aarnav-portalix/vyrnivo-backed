@@ -1,0 +1,21 @@
+name: Verify Vyrnivo Discover v2 live
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-discover-v2.mjs
+      - .github/workflows/live-discover-v2.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify live source searches and protected downloads
+        run: node scripts/live-discover-v2.mjs
