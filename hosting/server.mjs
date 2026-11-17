@@ -5,6 +5,7 @@ import {createPresence} from './presence.mjs';
 import {allowApi} from './access.mjs';
 import {createHumanVerification} from './security.mjs';
 import {setSecurityHeaders} from './security-headers.mjs';
+import {createPrivateConversionApi} from './private-api.mjs';
 import worker from '../dist/server/index.js';
 const env=process.env;
 const humanCheck=createHumanVerification({
@@ -14,7 +15,13 @@ const humanCheck=createHumanVerification({
 });
 if(humanCheck.incomplete)console.warn('Turnstile setup incomplete; challenge stays disabled until both keys exist.');
 const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify});
-const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true'});
+let privateApi;
+const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true',onFinished:event=>privateApi?.notify(event)});
+privateApi=createPrivateConversionApi({
+ converter,token:env.VYRNIVO_PRIVATE_API_TOKEN||env.DOWNLOAD_API_TOKEN||'',
+ webhookUrl:env.VYRNIVO_WEBHOOK_URL||'',
+ webhookSecret:env.VYRNIVO_WEBHOOK_SECRET||''
+});
 const presence=createPresence();
 const buckets=new Map();
 const uploadRemoved=()=>({enabled:false,reason:'Manual uploads are disabled. Paste a YouTube or Instagram link to receive an automatically hosted 10-minute download.'});
@@ -30,6 +37,7 @@ const server=http.createServer(async(req,res)=>{
  if(path.startsWith('/api/files')||path==='/api/internal/cleanup')return json({error:uploadRemoved().reason},410);
  const ip=req.socket.remoteAddress,now=Date.now();let b=buckets.get(ip);if(!b||now-b.start>60000){b={start:now,count:0};buckets.set(ip,b)}
  if(path.startsWith('/api/')&&++b.count>180){res.setHeader('retry-after','60');return json({error:'Please wait before trying again.'},429)}
+ if(path.startsWith('/api/private/'))return await privateApi.handle(req,res,path);
  if(path.startsWith('/api/presence'))return await presence.handle(req,res,path);
  if(path.startsWith('/api/downloads'))return await downloads.handle(req,res,path);
  if(path.startsWith('/api/converter'))return await converter.handle(req,res,path);
