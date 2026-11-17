@@ -45,3 +45,17 @@ for(const query of ['site:instagram.com/ national geographic','site:instagram.co
   console.log('INSTAGRAM_PUBLIC_INDEX_DIAG',JSON.stringify({query,status:r.status,links}));
  }catch(e){console.log('INSTAGRAM_PUBLIC_INDEX_DIAG',JSON.stringify({query,error:String(e.message).slice(0,90)}))}
 }
+
+for(const [label,endpoint] of [
+ ['google','https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/ national geographic')],
+ ['ddg-lite','https://lite.duckduckgo.com/lite/?q='+encodeURIComponent('site:instagram.com/ national geographic')],
+ ['ddg-html','https://html.duckduckgo.com/html/?q='+encodeURIComponent('site:instagram.com/ national geographic')]
+]){
+ try{
+  const r=await fetch(endpoint,{redirect:'error',signal:AbortSignal.timeout(10000)});
+  const body=(await r.text()).slice(0,240000);
+  const matches=[...body.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/[A-Za-z0-9._]{2,30}\/[^\s"'<>]*/gi)]
+    .slice(0,8).map(x=>x[0].slice(0,90));
+  console.log('IG_ALT_PUBLIC_INDEX_DIAG',JSON.stringify({label,status:r.status,bodyBytes:body.length,profiles:matches}));
+ }catch(e){console.log('IG_ALT_PUBLIC_INDEX_DIAG',JSON.stringify({label,error:String(e.message).slice(0,100)}))}
+}
