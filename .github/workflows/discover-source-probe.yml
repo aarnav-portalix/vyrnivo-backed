@@ -1,0 +1,24 @@
+name: Discover v2 live public source probe
+on:
+  push:
+    branches: [feat/reliable-source-status-discover-v2]
+    paths:
+      - worker/search.mjs
+      - worker/ig-creators.mjs
+      - worker/reels.mjs
+      - scripts/discover-source-probe.mjs
+      - .github/workflows/discover-source-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Query live search sources with safe topics
+        run: node scripts/discover-source-probe.mjs
