@@ -34,7 +34,7 @@ test('single-host website and source-only downloads API work without revealing b
     r=await fetch(base+'/app.js');
     assert.equal(r.status,200);
     const frontend=await r.text();
-    for(const phrase of ['Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover','One quick security check','No reliable completion estimate available yet']){
+    for(const phrase of ['Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Download service','Source access','Open Discover','One quick security check','Time remaining appears when measurable progress is available']){
       assert.ok(frontend.includes(phrase),'Missing production UI feature: '+phrase);
     }
     assert.equal(frontend.includes('Our own engine.'),false,'Deprecated engine marketing tab must be removed.');
