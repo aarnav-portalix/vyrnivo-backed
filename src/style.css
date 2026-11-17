@@ -426,3 +426,42 @@ svg{flex-shrink:0}
  .human-check-widget iframe{max-width:100%}
  .footer-credit{font-size:10px}
 }
+
+/* Clear, measured processing feedback: this is an ETA, not a deadline. */
+.download-result.pending .processing-copy{min-width:0}
+.processing-copy>p{margin:5px 0 0;font-size:11px;line-height:1.55;color:#bbaece}
+.processing-time{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:10px;color:#c5b9d6;font-size:11px;font-variant-numeric:tabular-nums}
+.processing-time b{color:#f5eaff;font-size:12px;font-weight:800}
+.processing-note{grid-column:1/-1;margin:2px 0 0;font-size:10px;line-height:1.6;color:#9e92af}
+.loading-track span.measured{animation:none;transition:width .35s ease;box-shadow:0 0 14px #c6a7fb56}
+.loading-track span.indeterminate{width:35%;animation:loading 1.5s ease-in-out infinite alternate}
+/* Faster perceived interaction, without confusing button presses. */
+@media(hover:none) and (pointer:coarse){
+ button,a,.tab,.format-tab,.status-toggle,.search-mode-tabs button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+ .cta:active,.outline-btn:active,.mini-primary:active,.icon-action:active,.paste-btn:active,.tab:active,.format-tab:active,.status-toggle:active,.search-mode-tabs button:active,.discover-teaser button:active,.legal-tabs button:active{
+  transform:scale(.975);filter:brightness(1.13);transition:transform .12s ease,filter .12s ease
+ }
+ .tab,.format-tab,.search-mode-tabs button,.status-toggle{min-height:44px}
+}
+@media(max-width:520px){
+ .content{padding-left:12px;padding-right:12px}
+ .hero{margin:8px auto 15px}
+ .hero h1{font-size:clamp(29px,7.6vw,38px)}
+ .hero>p:last-child{font-size:11px;margin-top:7px}
+ .kicker{margin-bottom:9px}
+ .panel{padding:13px;border-radius:17px}
+ .live-dashboard{margin-top:12px}
+ .download-result.pending{gap:9px}
+ .processing-time{gap:5px 11px;font-size:10px}
+ .processing-time b{font-size:11px}
+ .processing-note{font-size:9.5px}
+ .format-tabs{gap:4px}
+ .format-tab{min-width:0}
+ .search-panel{gap:8px}
+ .engine-panel .engine-intro{padding-bottom:12px}
+ .faq{margin-top:21px}
+}
+@media(prefers-reduced-motion:reduce){
+ .loading-track span.measured,.loading-track span.indeterminate{animation:none;transition:none}
+ .cta:active,.outline-btn:active,.tab:active,.format-tab:active,.status-toggle:active{transform:none}
+}
