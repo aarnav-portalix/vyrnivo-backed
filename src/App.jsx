@@ -39,6 +39,19 @@ const faqs=[
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
 const publicMediaKinds=new Set(['video','short','instagram']);
+function nativeDiscoverUrl(platform,kind,query){
+ const q=String(query||'').trim();
+ if(platform==='instagram'){
+  const hashtag=q.match(/^#([\p{L}\p{N}_]{2,80})$/u);
+  if(hashtag)return 'https://www.instagram.com/explore/tags/'+encodeURIComponent(hashtag[1])+'/';
+  return 'https://www.instagram.com/explore/search/keyword/?q='+encodeURIComponent(q);
+ }
+ const sp={videos:'EgIQAQ==',shorts:'EgIQCQ==',channels:'EgIQAg==',playlists:'EgIQAw=='};
+ const url=new URL('https://www.youtube.com/results');
+ url.searchParams.set('search_query',q);
+ if(sp[kind])url.searchParams.set('sp',sp[kind]);
+ return url.href;
+}
 const discoverTypes={youtube:[['all','All'],['videos','Videos'],['shorts','Shorts'],['channels','Channels'],['playlists','Playlists']],instagram:[['reels','Reels'],['creators','Creators']]};
 function friendlyError(message,source){
  const m=String(message||'');
@@ -117,6 +130,7 @@ function App(){
  const [searchSource,setSearchSource]=useState('youtube');
  const [searchKind,setSearchKind]=useState('all');
  const [searchUrl,setSearchUrl]=useState('');
+ const [indexedSearchUrl,setIndexedSearchUrl]=useState('');
  const [suggestedProfile,setSuggestedProfile]=useState(null);
  const [job,setJob]=useState(null);
  const [busy,setBusy]=useState(false);
@@ -218,8 +232,20 @@ function App(){
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
- const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
- const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
+ const resetSearchView=()=>{searchAbort.current?.abort();setSearching(false);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setIndexedSearchUrl('');setSuggestedProfile(null)};
+ const switchSearchSource=next=>{
+  if(next===searchSource)return;
+  const kind=next==='instagram'?'reels':'all';
+  setSearchSource(next);setSearchKind(kind);
+  if(query.trim().length>=2&&searched)void runSearch(next,kind,query);
+  else resetSearchView();
+ };
+ const switchSearchKind=next=>{
+  if(next===searchKind)return;
+  setSearchKind(next);
+  if(query.trim().length>=2&&searched)void runSearch(searchSource,next,query);
+  else resetSearchView();
+ };
  const setDownloadMode=next=>{setJob(null);setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
   try{
@@ -253,19 +279,26 @@ function App(){
   try{await navigator.clipboard.writeText(location.origin+job.downloadUrl);showToast('Link copied!')}
   catch{showToast('Hold the Download button to copy its link.')}
  }
- async function search(e){
-  e?.preventDefault?.();
-  const q=query.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
-  searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;
-  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);setSuggestedProfile(null);
+ async function runSearch(source,kind,term){
+  const q=term.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
+  searchAbort.current?.abort();
+  const controller=new AbortController();searchAbort.current=controller;
+  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);setSearchUrl('');setIndexedSearchUrl('');setSuggestedProfile(null);
   try{
-   const r=await fetch('/api/search/'+searchSource+'?q='+encodeURIComponent(q)+'&kind='+encodeURIComponent(searchKind),{signal:controller.signal});
+   const r=await fetch('/api/search/'+source+'?q='+encodeURIComponent(q)+'&kind='+encodeURIComponent(kind),{signal:controller.signal});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Search unavailable.');
-   setResults(data.items||[]);setSearchNote(data.notice||'');setSearchUrl(data.searchUrl||'');setSuggestedProfile(data.suggestedProfile||null);
-  }catch(e){if(e.name!=='AbortError')setSearchError('Search unavailable. Try again.')}
-  finally{if(searchAbort.current===controller)setSearching(false)}
+   if(controller.signal.aborted)return;
+   setResults(Array.isArray(data.items)?data.items:[]);
+   setSearchNote(data.notice||'');
+   setSearchUrl(data.searchUrl||nativeDiscoverUrl(source,kind,q));
+   setIndexedSearchUrl(data.indexedSearchUrl||'');
+   setSuggestedProfile(data.suggestedProfile||null);
+  }catch(e){
+   if(e.name!=='AbortError'&&!controller.signal.aborted)setSearchError('Live results are unavailable right now. Search directly on the original platform.');
+  }finally{if(searchAbort.current===controller)setSearching(false)}
  }
+ function search(e){e?.preventDefault?.();return runSearch(searchSource,searchKind,query)}
  const chooseResult=item=>{
   if(!publicMediaKinds.has(item.kind))return;
   setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
