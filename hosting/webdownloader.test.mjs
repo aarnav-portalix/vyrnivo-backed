@@ -7,10 +7,15 @@ import {supportsFreeFallback,fallbackPayload,downloadViaFreeProvider} from './we
 
 const input={url:'https://www.youtube.com/watch?v=jNQXAC9IVRw',mode:'Video + audio',quality:'720p',container:'MP4'};
 
-test('free provider supports documented MP4 and MP3 contracts only',()=>{
+test('fallback fetches MP3 once for MP3, M4A and WAV and never mislabels Original audio',()=>{
  assert.equal(supportsFreeFallback(input),true);
  assert.deepEqual(fallbackPayload(input),{url:input.url,format:'video',quality:'720p',outputFormat:'mp4'});
- assert.deepEqual(fallbackPayload({...input,mode:'Audio only',container:'MP3'}),{url:input.url,format:'audio',quality:'best',outputFormat:'mp3'});
+ for(const format of ['MP3','M4A','WAV']){
+  const requested={...input,mode:'Audio only',container:format};
+  assert.equal(supportsFreeFallback(requested),true);
+  assert.deepEqual(fallbackPayload(requested),{url:input.url,format:'audio',quality:'best',outputFormat:'mp3'});
+ }
+ assert.equal(supportsFreeFallback({...input,mode:'Audio only',container:'Original audio'}),false);
  assert.equal(supportsFreeFallback({...input,mode:'Video only'}),false);
  assert.equal(supportsFreeFallback({...input,container:'WebM'}),false);
  assert.equal(fallbackPayload({...input,quality:'2160p · 4K'}).quality,'2160p');

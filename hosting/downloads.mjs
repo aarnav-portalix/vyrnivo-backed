@@ -8,6 +8,7 @@ import {classifyExtractorFailure} from './source-failures.mjs';
 import {supportsFreeFallback,downloadViaFreeProvider} from './webdownloader.mjs';
 import {downloadViaOwnedEngine} from './owned-downloader.mjs';
 import {parseExtractorProgress} from './progress-metrics.mjs';
+import {convertBackupAudio} from './audio-formats.mjs';
 export function validate(input){
  const u=new URL(input.url);if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Use an HTTPS video link.');
  const h=u.hostname.replace(/^www\./,'');let allowed=false;
@@ -38,7 +39,7 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
-export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null}={}){
+export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null,convertAudio=convertBackupAudio}={}){
  const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;let backupRetryAt=0;let ownedRetryAt=0;const successful=new Map();const inProgress=new Map();
  if(enabled){await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true,mode:0o700})}
  const canTryFallback=input=>freeFallbackEnabled&&now()>=backupRetryAt&&supportsFreeFallback(input);
@@ -55,7 +56,16 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   successful.set(j.requestKey,j.id);
  };
 
- const backup=async()=>{j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;const result=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});Object.assign(j,result,{expiresAt:now()+600000,state:'ready',stage:'Ready',progressPercent:100,failureCode:null,error:null,canRetryWithDifferentFormat:false});successful.set(j.requestKey,j.id)};
+ const backup=async()=>{
+  j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  const downloaded=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});
+  const result=input.mode==='Audio only'&&['M4A','WAV'].includes(input.container)
+   ?await convertAudio(downloaded,j.dir,input.container,{onProgress:p=>Object.assign(j,p)})
+   :downloaded;
+  Object.assign(j,result,{expiresAt:now()+600000,state:'ready',stage:'Ready',progressPercent:100,
+   estimatedSecondsRemaining:null,progressSource:null,failureCode:null,error:null,canRetryWithDifferentFormat:false});
+  successful.set(j.requestKey,j.id);
+ };
  try{await mkdir(j.dir,{recursive:true,mode:0o700});
  if(ownedEngineConfig&&now()>=ownedRetryAt){
   try{await tryOwned();return}
@@ -92,7 +102,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }finally{if(inProgress.get(j.requestKey)===j.id)inProgress.delete(j.requestKey);active=false}}
  const cleanup=async()=>{for(const [id,j]of jobs){if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';if(successful.get(j.requestKey)===id)successful.delete(j.requestKey);await rm(j.dir,{recursive:true,force:true})}if(['failed','expired'].includes(j.state)&&now()-j.createdAt>3600000)jobs.delete(id)}};
  const timer=enabled?setInterval(()=>cleanup().catch(()=>{}),5000):null;timer?.unref();
- return {enabled,sweep:cleanup,close(){clearInterval(timer)},async handle(req,res,path){const send=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};if(path==='/api/downloads/status')return send({enabled,providers:['Temporary server storage'],maxBytes:50*1024*1024,youtubeRetryAt,freeFallbackEnabled,backupRetryAt,sourceAvailability:{youtube:now()<youtubeRetryAt?(freeFallbackEnabled&&now()>=backupRetryAt?'backup-available':'rate-limited'):'unverified',instagram:'unverified'},maxMB:200,maxMinutes:30,retentionMinutes:10,reason:enabled?null:'Temporary download server is offline.'});if(!enabled)return send({error:'Download server is not connected.'},503);
+ return {enabled,sweep:cleanup,close(){clearInterval(timer)},async handle(req,res,path){const send=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};if(path==='/api/downloads/status')return send({enabled,providers:['Temporary server storage'],maxBytes:50*1024*1024,audioFallbackFormats:freeFallbackEnabled?['MP3','M4A','WAV']:[],originalAudioRequiresSourceAccess:true,youtubeRetryAt,freeFallbackEnabled,backupRetryAt,sourceAvailability:{youtube:now()<youtubeRetryAt?(freeFallbackEnabled&&now()>=backupRetryAt?'backup-available':'rate-limited'):'unverified',instagram:'unverified'},maxMB:200,maxMinutes:30,retentionMinutes:10,reason:enabled?null:'Temporary download server is offline.'});if(!enabled)return send({error:'Download server is not connected.'},503);
  if(path==='/api/downloads/upload')return send({error:'Manual uploads are disabled. Paste a YouTube or Instagram link; Vyrnivo prepares a temporary download automatically.'},410);
  if(path==='/api/downloads'&&req.method==='POST'){let body='';for await(const chunk of req){body+=chunk;if(body.length>4096)return send({error:'Request too large'},413)}let input,verificationToken;try{const payload=JSON.parse(body);input=validate(payload);verificationToken=payload.turnstileToken}catch(e){return send({error:e.message},400)}if(/(?:youtube\.com|youtu\.be)/.test(new URL(input.url).hostname)&&now()<youtubeRetryAt&&!canTryFallback(input)&&!(ownedEngineConfig&&now()>=ownedRetryAt)){res.setHeader('retry-after',String(Math.ceil((youtubeRetryAt-now())/1000)));return send({error:'The source is rate-limiting this server and the backup is cooling down. Please retry later.',retryAt:youtubeRetryAt,code:'SOURCE_RATE_LIMITED'},429)}const verified=await verifyToken(verificationToken);
  if(!verified?.ok)return send({error:verified?.error||'Human verification required.',code:verified?.code||'BOT_CHECK_FAILED'},verified?.status||403);

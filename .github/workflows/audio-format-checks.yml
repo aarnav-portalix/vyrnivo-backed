@@ -1,0 +1,32 @@
+name: Validate real MP3 M4A WAV audio downloads
+on:
+  push:
+    branches: [main, fix/audio-formats-speed-aarnav12]
+    paths:
+      - hosting/audio-formats.mjs
+      - hosting/audio-formats.test.mjs
+      - hosting/webdownloader.mjs
+      - hosting/downloads.mjs
+      - hosting/downloads.test.mjs
+      - scripts/audio-fallback-e2e.mjs
+      - .github/workflows/audio-format-checks.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm FFmpeg and FFprobe
+        run: |
+          if ! command -v ffmpeg || ! command -v ffprobe; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+      - name: Unit test audio formats
+        run: node --test hosting/audio-formats.test.mjs hosting/webdownloader.test.mjs
+      - name: Test full download job and genuine MP3, AAC/M4A, WAV bytes
+        run: node scripts/audio-fallback-e2e.mjs

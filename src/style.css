@@ -547,3 +547,7 @@ button,.tab,.cta,.format-tab,.outline-btn,.options-btn,.status-toggle{transition
  button,.tab,.cta,.format-tab,.outline-btn,.options-btn,.status-toggle,.loading-track span.measured{transition:none!important}
  .tab:active,.format-tab:active,.cta:active,.options-btn:active,.status-toggle:active{transform:none}
 }
+
+/* Audio format guidance stays compact on touch screens. */
+.audio-format-help{grid-column:1/-1;margin:0;padding:0 2px;color:#bcb0cc;font-size:11px;line-height:1.6}
+@media(max-width:520px){.audio-format-help{font-size:10px;line-height:1.45}}
