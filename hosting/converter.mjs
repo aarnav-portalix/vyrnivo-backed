@@ -114,11 +114,9 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
  };
  const publicJob=j=>{
   const elapsedSeconds=Math.max(0,Math.floor((now()-j.createdAt)/1000));
-  const estimate=j.state==='processing'&&Number.isFinite(j.estimatedTotalSeconds)
-    ?Math.max(0,Math.ceil(j.estimatedTotalSeconds-elapsedSeconds)):null;
   return {id:j.id,engine:'converter',state:j.state,createdAt:j.createdAt,elapsedSeconds,
-   stage:j.stage||null,progressPercent:j.progressPercent??null,estimatedTotalSeconds:j.estimatedTotalSeconds||null,estimatedSecondsRemaining:estimate,
-   estimateIsApproximate:true,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,
+   stage:j.stage||null,progressPercent:j.progressPercent??null,progressSource:j.progressSource||null,estimatedTotalSeconds:null,estimatedSecondsRemaining:null,
+   estimateIsApproximate:false,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,
    bytes:j.bytes||0,sourceMetadata:j.sourceMetadata||null,
    downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null};
  };
@@ -181,7 +179,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
     }catch(e){return send({error:e.message},400)}
     if(active)return send({error:'Another media file is being converted. Try again shortly.'},429);
     const id=randomUUID();
-    const j={id,dir:join(root,id),createdAt:now(),state:'processing',stage:'Connecting to source',progressPercent:5,estimatedTotalSeconds:65,sourceMetadata:input.sourceMetadata||null};
+    const j={id,dir:join(root,id),createdAt:now(),state:'processing',stage:'Connecting to source',progressPercent:null,estimatedSecondsRemaining:null,sourceMetadata:input.sourceMetadata||null};
     jobs.set(id,j);active=true;
     void execute(j,input);
     return send(publicJob(j),202);
