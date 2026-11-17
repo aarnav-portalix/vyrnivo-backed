@@ -168,8 +168,8 @@ function App(){
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
  const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
- const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('')};
- const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
+ const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
+ const setDownloadMode=next=>{setJob(p=>p&&['failed','expired'].includes(p.state)?null:p);setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
   try{
    const clip=(await navigator.clipboard.readText()).trim();
@@ -299,7 +299,7 @@ function App(){
    {page==='download'&&
      <section className="panel" aria-label="Video downloader">
      <form onSubmit={startDownload}>
-      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('')}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
+      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('');setJob(p=>p&&['failed','expired'].includes(p.state)?null:p)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
        {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
       </div>
       <div className="format-tabs" role="group" aria-label="Download format">
