@@ -30,8 +30,8 @@ const markers={
  tabs:['Discover','About','Download'],
  policies:['Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice'],
  credits:['Built by Aarnav12'],
- downloader:['Main engine','Backup engine','Open Discover'],
- processing:['No reliable completion estimate available yet','Elapsed'],
+ downloader:['Download service','Source access','Open Discover'],
+ processing:['Time remaining appears when measurable progress is available','Elapsed'],
  bot:['One quick security check','Verify you'],
  search:['YouTube','Instagram','Preview'],
 };

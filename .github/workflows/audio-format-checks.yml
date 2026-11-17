@@ -1,13 +1,14 @@
 name: Validate real MP3 M4A WAV audio downloads
 on:
   push:
-    branches: [main, fix/audio-formats-speed-aarnav12]
+    branches: [main, feat/quality-honest-eta-redesign-v3]
     paths:
       - hosting/audio-formats.mjs
       - hosting/audio-formats.test.mjs
       - hosting/webdownloader.mjs
       - hosting/downloads.mjs
       - hosting/downloads.test.mjs
+      - hosting/quality-control.test.mjs
       - scripts/audio-fallback-e2e.mjs
       - .github/workflows/audio-format-checks.yml
   workflow_dispatch:

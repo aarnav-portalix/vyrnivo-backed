@@ -42,3 +42,23 @@ export function parseExtractorProgress(output){
  const percent=matches.length?Number(matches.at(-1)[1]):null;
  return Number.isFinite(percent)&&percent>=0&&percent<=100?percent:null;
 }
+
+/** yt-dlp reports an optional *measured, phase-specific* ETA. Never invent one. */
+export function parseExtractorTelemetry(output){
+ const lines=String(output||'').split(/\r?\n/).filter(line=>line.startsWith('download:'));
+ const last=lines.at(-1)||'';
+ const [percentText,etaText]=last.slice('download:'.length).split('|');
+ const percentMatch=String(percentText||'').match(/(\d+(?:\.\d+)?)%/);
+ const number=percentMatch?Number(percentMatch[1]):null;
+ const percent=Number.isFinite(number)&&number>=0&&number<=100?number:null;
+ let etaSeconds=null;
+ const value=String(etaText||'').trim();
+ if(/^\d{1,2}:\d{2}(?::\d{2})?$/.test(value)){
+  const parts=value.split(':').map(Number);
+  etaSeconds=parts.reduce((total,n)=>total*60+n,0);
+ }else if(/^\d+(?:\.\d+)?s?$/.test(value)){
+  etaSeconds=Math.ceil(Number.parseFloat(value));
+ }
+ if(!Number.isFinite(etaSeconds)||etaSeconds>7200||etaSeconds<0)etaSeconds=null;
+ return {percent,etaSeconds};
+}

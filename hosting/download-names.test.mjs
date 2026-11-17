@@ -10,22 +10,22 @@ const url='https://www.youtube.com/watch?v=jNQXAC9IVRw';
 test('clean title, requested quality and actual extension produce clear names',()=>{
  assert.equal(displayDownloadName({
   title:'Awesome Montage 2026!',url,mode:'Video + audio',quality:'1080p',storageName:'media.mp4'
- }),'vyrnivo-Awesome Montage 2026!-1080p-MP4.mp4');
+ }),'vyrnivo-Awesome Montage 2026! (1080p).mp4');
  assert.equal(displayDownloadName({
   title:'Roblox Edit',url,mode:'Audio only',quality:'Best available',storageName:'media.m4a'
- }),'vyrnivo-Roblox Edit-Audio-M4A.m4a');
+ }),'vyrnivo-Roblox Edit (Audio).m4a');
  assert.equal(displayDownloadName({
   title:'Music ✨',url,mode:'Audio only',quality:'Best available',storageName:'media.wav'
- }),'vyrnivo-Music ✨-Audio-WAV.wav');
+ }),'vyrnivo-Music ✨ (Audio).wav');
  assert.equal(displayDownloadName({
   title:'Creator',url,mode:'Video only',quality:'2160p · 4K',storageName:'media.webm'
- }),'vyrnivo-Creator-2160p-VideoOnly-WEBM.webm');
+ }),'vyrnivo-Creator (2160p).webm');
  assert.equal(displayDownloadName({
   url,mode:'Video + audio',quality:'720p',storageName:'media.mp4'
- }),'vyrnivo-YouTube-jNQXAC9IVRw-720p-MP4.mp4');
+ }),'vyrnivo-YouTube-jNQXAC9IVRw (720p).mp4');
  assert.equal(displayDownloadName({
   url:'https://www.instagram.com/reel/ABCDxyzzzz/',mode:'Video + audio',quality:'Best available',storageName:'media.mp4'
- }),'vyrnivo-Instagram-Reel-ABCDxyzzzz-Best-MP4.mp4');
+ }),'vyrnivo-Instagram-Reel-ABCDxyzzzz (Best available).mp4');
 });
 
 test('malicious or huge media titles cannot traverse paths or inject headers',()=>{
@@ -38,7 +38,7 @@ test('malicious or huge media titles cannot traverse paths or inject headers',()
   title:tricky,url,mode:'Audio only',quality:'Best available',storageName:'media.mp3'
  });
  assert.ok(filename.startsWith('vyrnivo-'));
- assert.ok(filename.endsWith('-Audio-MP3.mp3'));
+ assert.ok(filename.endsWith(' (Audio).mp3'));
  assert.ok(filename.length<160);
  assert.throws(()=>displayDownloadName({title:'x',url,mode:'Audio only',storageName:'../../etc/passwd'}));
  assert.equal(actualMediaExtension('media.flac'),'flac');

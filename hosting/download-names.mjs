@@ -39,17 +39,16 @@ export function actualMediaExtension(storageName){
  return m&&ALLOWED_EXT.has(m[1].toLowerCase())?m[1].toLowerCase():null;
 }
 
-export function displayDownloadName({title,url,mode,quality,storageName}){
+export function displayDownloadName({title,url,mode,quality,actualQuality,audioBitrate='Source',storageName}){
  const ext=actualMediaExtension(storageName);
  if(!ext)throw Error('Unsupported output file extension');
  const label=safeMediaTitle(title)||fallbackMediaTitle(url);
- const format=ext.toUpperCase();
  const isAudio=mode==='Audio only';
- const qualityLabel=isAudio?'Audio':
-  quality==='Best available'?'Best':
-  /^\d{3,4}p/.test(quality||'')?String(quality).match(/^\d{3,4}p/)[0]:'Video';
- const modeLabel=mode==='Video only'?'-VideoOnly':'';
- return 'vyrnivo-'+label+'-'+qualityLabel+modeLabel+'-'+format+'.'+ext;
+ const effectiveQuality=actualQuality||quality;
+ const qualityLabel=isAudio?(audioBitrate==='Source'?'Audio':audioBitrate.replace(/\s+/g,'')):
+  /^\d{3,4}p/.test(effectiveQuality||'')?String(effectiveQuality).match(/^\d{3,4}p/)[0]:
+  effectiveQuality==='Best available'?'Best available':'Video';
+ return 'vyrnivo-'+label+' ('+qualityLabel+').'+ext;
 }
 
 export function contentDisposition(name){
