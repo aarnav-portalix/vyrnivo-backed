@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {classifyExtractorFailure} from './source-failures.mjs';
 import {supportsFreeFallback,downloadViaFreeProvider} from './webdownloader.mjs';
+import {downloadViaOwnedEngine} from './owned-downloader.mjs';
 export function validate(input){
  const u=new URL(input.url);if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Use an HTTPS video link.');
  const h=u.hostname.replace(/^www\./,'');let allowed=false;
@@ -36,15 +37,35 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
-export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true})}={}){
- const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;let backupRetryAt=0;const successful=new Map();const inProgress=new Map();
+export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null}={}){
+ const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;let backupRetryAt=0;let ownedRetryAt=0;const successful=new Map();const inProgress=new Map();
  if(enabled){await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true,mode:0o700})}
  const canTryFallback=input=>freeFallbackEnabled&&now()>=backupRetryAt&&supportsFreeFallback(input);
  const publicJob=j=>({id:j.id,state:j.state,createdAt:j.createdAt,elapsedSeconds:Math.max(0,Math.floor((now()-j.createdAt)/1000)),stage:j.stage||null,progressPercent:j.progressPercent??null,estimatedTotalSeconds:j.estimatedTotalSeconds||null,estimatedSecondsRemaining:j.state==='processing'?Math.max(0,Math.ceil((j.estimatedTotalSeconds||65)-(now()-j.createdAt)/1000)):null,estimateIsApproximate:true,error:j.error,failureCode:j.failureCode||null,canRetryWithDifferentFormat:j.canRetryWithDifferentFormat===true,expiresAt:j.expiresAt,name:j.name,bytes:j.bytes,provider:j.provider||'Temporary server storage',url:j.state==='ready'&&now()<j.expiresAt?'/api/downloads/'+j.id+'/file':null,downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/downloads/'+j.id+'/file':null,hosted:j.hosted});
  async function run(j,input){const youtubeInput=/^(?:youtube\.com|m\.youtube\.com|music\.youtube\.com|youtu\.be|youtube-nocookie\.com)$/.test(new URL(input.url).hostname.replace(/^www\./,''));
  const useBackupFirst=youtubeInput&&now()<youtubeRetryAt&&canTryFallback(input);
+ const tryOwned=async()=>{
+  j.stage='Connecting to Vyrnivo engine';j.progressPercent=5;j.estimatedTotalSeconds=85;
+  const result=await downloadViaOwnedEngine(input,j.dir,{
+   config:ownedEngineConfig,fetchImpl,onProgress:p=>Object.assign(j,p),now
+  });
+  Object.assign(j,result,{state:'ready',stage:'Ready',progressPercent:100,
+   expiresAt:now()+600000,failureCode:null,error:null,canRetryWithDifferentFormat:false});
+  successful.set(j.requestKey,j.id);
+ };
+
  const backup=async()=>{j.stage='Connecting to backup engine';j.progressPercent=12;j.estimatedTotalSeconds=65;const result=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});Object.assign(j,result,{expiresAt:now()+600000,state:'ready',stage:'Ready',progressPercent:100,failureCode:null,error:null,canRetryWithDifferentFormat:false});successful.set(j.requestKey,j.id)};
- try{await mkdir(j.dir,{recursive:true,mode:0o700});if(useBackupFirst){await backup();return}let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500);
+ try{await mkdir(j.dir,{recursive:true,mode:0o700});
+ if(ownedEngineConfig&&now()>=ownedRetryAt){
+  try{await tryOwned();return}
+  catch(error){
+   if(error?.retryAfterMs>0)ownedRetryAt=now()+error.retryAfterMs;
+   await rm(j.dir,{recursive:true,force:true});
+   await mkdir(j.dir,{recursive:true,mode:0o700});
+   j.stage='Checking source';j.progressPercent=5;j.estimatedTotalSeconds=65;
+  }
+ }
+ if(useBackupFirst){await backup();return}let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500);
  const matches=[...String(d).matchAll(/download:\\s*(\\d+(?:\\.\\d+)?)%/g)];
  if(matches.length){const percent=Number(matches.at(-1)[1]);if(Number.isFinite(percent)&&percent>=0&&percent<=100){j.stage='Downloading media';j.progressPercent=Math.max(15,Math.min(95,Math.round(15+.8*percent)))}}});proc.stderr.on('data',d=>{stderr=(stderr+d).slice(-4000);if(/(?:HTTP Error|status(?: code)?)\s*:?\s*429\b|\b429 Too Many Requests\b|Too Many Requests/i.test(stderr))proc.kill('SIGTERM')});const timeout=setTimeout(()=>proc.kill('SIGKILL'),180000);const disk=setInterval(async()=>{try{let bytes=0;for(const f of await readdir(j.dir))bytes+=(await stat(join(j.dir,f))).size;if(bytes>400*1024*1024)proc.kill('SIGKILL')}catch{}},1000);const clear=()=>{clearTimeout(timeout);clearInterval(disk)};proc.on('error',e=>{clear();reject(e)});proc.on('close',code=>{clear();if(code===0)resolve();else {
  const failure=classifyExtractorFailure(stderr,{source:youtubeInput?'youtube':'instagram'});
