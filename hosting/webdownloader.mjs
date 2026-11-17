@@ -32,7 +32,7 @@ export function fallbackPayload(input){
  return {url:input.url,format:input.mode==='Audio only'?'audio':'video',quality,outputFormat:input.mode==='Audio only'?'mp3':'mp4'};
 }
 
-export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch}={}){
+export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgress=()=>{}}={}){
  const payload=fallbackPayload(input);
  const extension=payload.outputFormat;
  const destination=join(dir,'media.'+extension);
@@ -62,9 +62,10 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch}={}){
  const length=Number(lengthHeader);
  if(lengthHeader!==null&&(!Number.isSafeInteger(length)||length<=0||length>MAX_BYTES))
   throw new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0);
- let bytes=0;
+ let bytes=0,lastReport=0;
  const limiter=new Transform({transform(chunk,encoding,callback){
   bytes+=chunk.length;
+  if(Date.now()-lastReport>250){lastReport=Date.now();onProgress({stage:'Receiving media',progressPercent:lengthHeader!==null&&length>0?Math.min(97,Math.round(15+80*bytes/length)):null})}
   if(bytes>MAX_BYTES)callback(new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0));
   else callback(null,chunk);
  }});
