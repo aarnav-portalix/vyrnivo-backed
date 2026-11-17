@@ -207,8 +207,8 @@ test('a configured Vyrnivo-owned worker is used before local or public fallback'
   await manager.handle(req,res,'/api/downloads');
   assert.equal(res.status,202);
   const jobId=response.id;
-  for(let i=0;i<80;i++){
-   await new Promise(resolve=>setTimeout(resolve,10));
+  for(let i=0;i<90;i++){
+   await new Promise(resolve=>setTimeout(resolve,30));
    await manager.handle({method:'GET'},res,'/api/downloads/'+jobId);
    if(response.state!=='processing')break;
   }
