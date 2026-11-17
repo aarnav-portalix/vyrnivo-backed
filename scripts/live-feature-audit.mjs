@@ -27,11 +27,11 @@ check('antiClickjack',page.headers.get('x-frame-options')==='DENY',{xFrameOption
 const [jsR,cssR]=await Promise.all([call('/app.js'),call('/app.css')]);
 const js=await jsR.text(),css=await cssR.text();
 const markers={
- tabs:['Our Engine','Discover','About','Download'],
+ tabs:['Discover','About','Download'],
  policies:['Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice'],
- credits:['BUILT BY AARNAV','Built by Aarnav'],
+ credits:['Built by Aarnav'],
  downloader:['Main engine','Backup engine','Open Discover'],
- processing:['Time remaining is an estimate','Calculating time','Elapsed'],
+ processing:['No reliable completion estimate available yet','Elapsed'],
  bot:['One quick security check','Verify you'],
  search:['YouTube','Instagram','Preview'],
 };

@@ -34,9 +34,11 @@ test('single-host website and source-only downloads API work without revealing b
     r=await fetch(base+'/app.js');
     assert.equal(r.status,200);
     const frontend=await r.text();
-    for(const phrase of ['Our Engine','Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover','BUILT BY AARNAV','One quick security check']){
+    for(const phrase of ['Discover','Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice','Main engine','Backup engine','Open Discover','One quick security check','No reliable completion estimate available yet']){
       assert.ok(frontend.includes(phrase),'Missing production UI feature: '+phrase);
     }
+    assert.equal(frontend.includes('Our own engine.'),false,'Deprecated engine marketing tab must be removed.');
+    assert.equal(frontend.includes('Link expired. Submit the video again.')&&frontend.includes('saved(\'dw3lastJob\''),false,'No stale download job should load from browser storage.');
     r=await fetch(base+'/api/downloads/status');
     assert.equal(r.status,200);
     const status=await r.json();
