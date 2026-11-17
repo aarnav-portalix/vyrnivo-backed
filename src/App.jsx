@@ -50,6 +50,35 @@ function friendlyError(message,source){
  if(m.length>150)return 'Could not prepare this video. Try a different link.';
  return m||('Could not download this '+source+' video.');
 }
+function AuroraVisual(){return <div className="aurora-visual" aria-hidden="true">
+ <svg viewBox="0 0 640 270" role="presentation" className="aurora-svg">
+  <defs>
+   <linearGradient id="aurora-ring" x1="62" y1="62" x2="556" y2="192" gradientUnits="userSpaceOnUse">
+    <stop stopColor="#7DE0FC" stopOpacity=".75"/><stop offset=".46" stopColor="#D79AFF" stopOpacity=".52"/><stop offset="1" stopColor="#FF90D0" stopOpacity=".7"/>
+   </linearGradient>
+   <radialGradient id="aurora-core"><stop stopColor="#C7A0FF" stopOpacity=".7"/><stop offset=".6" stopColor="#825BCE" stopOpacity=".4"/><stop offset="1" stopColor="#6535A9" stopOpacity=".08"/></radialGradient>
+   <linearGradient id="aurora-disc" x1="240" y1="49" x2="375" y2="207" gradientUnits="userSpaceOnUse">
+    <stop stopColor="#E4C8FF" stopOpacity=".82"/><stop offset=".53" stopColor="#795DCE" stopOpacity=".7"/><stop offset="1" stopColor="#2F235F" stopOpacity=".9"/>
+   </linearGradient>
+  </defs>
+  <ellipse className="aurora-halo" cx="322" cy="128" rx="155" ry="100" fill="url(#aurora-core)"/>
+  <g className="aurora-orbits">
+   <ellipse cx="322" cy="128" rx="260" ry="62" transform="rotate(-21 322 128)" fill="none" stroke="url(#aurora-ring)" strokeWidth="1.6"/>
+   <ellipse cx="322" cy="128" rx="243" ry="71" transform="rotate(24 322 128)" fill="none" stroke="url(#aurora-ring)" strokeDasharray="3 9" strokeWidth="1.5"/>
+  </g>
+  <g className="aurora-disc">
+   <circle cx="322" cy="128" r="87" fill="url(#aurora-disc)" stroke="#EDCEFF" strokeOpacity=".65" strokeWidth="1.5"/>
+   <circle cx="322" cy="128" r="69" fill="#1A153A" fillOpacity=".8" stroke="#CFB4FF" strokeOpacity=".65" strokeDasharray="4 10"/>
+   <circle cx="322" cy="128" r="57" fill="#241843" stroke="#FFF2FF" strokeOpacity=".3"/>
+   <path d="M322 91V144M302 125L322 145L342 125M297 158H347" stroke="#FAEBFF" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+  </g>
+  <circle className="aurora-particle p1" cx="82" cy="188" r="4.5" fill="#8BE8F8"/>
+  <circle className="aurora-particle p2" cx="552" cy="75" r="4.5" fill="#FFB6EA"/>
+  <circle className="aurora-particle p3" cx="480" cy="224" r="3.5" fill="#DDB6FF"/>
+  <path d="M132 48L138 62L152 68L138 74L132 88L126 74L112 68L126 62Z" fill="#BDA8FF" opacity=".76"/>
+  <path d="M529 163L533 173L543 177L533 181L529 191L525 181L515 177L525 173Z" fill="#86D9FD" opacity=".75"/>
+ </svg>
+</div>}
 function Preview({item,onClose}){
  useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
  useEffect(()=>{
@@ -283,10 +312,11 @@ function App(){
    </nav>
   </header>
   <main className="content" id="main-content">
-   <div className="hero" key={page}>
+   <div className="hero" key={page}><AuroraVisual/>
     <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
     <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='discover'?'Discover videos, Shorts, channels, playlists, Reels and creators.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
+    {page==='download'&&<div className="flow-steps" aria-hidden="true"><span>01 / Paste link</span><span>02 / Choose quality</span><span>03 / Save</span></div>}
    </div>
    {page==='download'&&
      <section className="panel surface-interactive" ref={panelRef} aria-label="Video downloader">
