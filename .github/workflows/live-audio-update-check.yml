@@ -1,0 +1,21 @@
+name: Verify live Vyrnivo audio formats and Aarnav12 branding
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-audio-update-check.mjs
+      - .github/workflows/live-audio-update-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify live audio fallback formats and existing protections
+        run: node scripts/live-audio-update-check.mjs
