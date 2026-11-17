@@ -9,6 +9,7 @@ import {Readable,Transform} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {join} from 'node:path';
 import {rm} from 'node:fs/promises';
+import {createTransferReporter} from './progress-metrics.mjs';
 
 const API='https://save.brianrianrehan.com/api/v1/download?wait=true&download=true';
 const MAX_BYTES=200*1024*1024;
@@ -67,10 +68,11 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  const length=Number(lengthHeader);
  if(lengthHeader!==null&&(!Number.isSafeInteger(length)||length<=0||length>MAX_BYTES))
   throw new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0);
- let bytes=0,lastReport=0;
+ let bytes=0;
+ const reportTransfer=createTransferReporter({onProgress,totalBytes:lengthHeader!==null?length:null,stage:'Receiving media'});
  const limiter=new Transform({transform(chunk,encoding,callback){
   bytes+=chunk.length;
-  if(Date.now()-lastReport>250){lastReport=Date.now();onProgress({stage:'Receiving media',progressPercent:lengthHeader!==null&&length>0?Math.min(97,Math.round(15+80*bytes/length)):null})}
+  reportTransfer(chunk.length);
   if(bytes>MAX_BYTES)callback(new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0));
   else callback(null,chunk);
  }});
