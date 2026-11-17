@@ -29,7 +29,7 @@ const js=await jsR.text(),css=await cssR.text();
 const markers={
  tabs:['Discover','About','Download'],
  policies:['Privacy Policy','Terms of Use','Copyright & Content Removal','Service & Availability Notice'],
- credits:['Built by Aarnav'],
+ credits:['Built by Aarnav12'],
  downloader:['Main engine','Backup engine','Open Discover'],
  processing:['No reliable completion estimate available yet','Elapsed'],
  bot:['One quick security check','Verify you'],
