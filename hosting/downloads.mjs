@@ -8,6 +8,7 @@ import {classifyExtractorFailure} from './source-failures.mjs';
 import {supportsFreeFallback,downloadViaFreeProvider} from './webdownloader.mjs';
 import {downloadViaOwnedEngine} from './owned-downloader.mjs';
 import {parseExtractorProgress} from './progress-metrics.mjs';
+import {convertBackupAudio} from './audio-formats.mjs';
 export function validate(input){
  const u=new URL(input.url);if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Use an HTTPS video link.');
  const h=u.hostname.replace(/^www\./,'');let allowed=false;
@@ -38,7 +39,7 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
-export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null}={}){
+export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null,convertAudio=convertBackupAudio}={}){
  const root=join(tmpdir(),'vyrnivo-downloads');const jobs=new Map();let active=false;let youtubeRetryAt=0;let backupRetryAt=0;let ownedRetryAt=0;const successful=new Map();const inProgress=new Map();
  if(enabled){await rm(root,{recursive:true,force:true});await mkdir(root,{recursive:true,mode:0o700})}
  const canTryFallback=input=>freeFallbackEnabled&&now()>=backupRetryAt&&supportsFreeFallback(input);
@@ -55,7 +56,16 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   successful.set(j.requestKey,j.id);
  };
 
- const backup=async()=>{j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;const result=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});Object.assign(j,result,{expiresAt:now()+600000,state:'ready',stage:'Ready',progressPercent:100,failureCode:null,error:null,canRetryWithDifferentFormat:false});successful.set(j.requestKey,j.id)};
+ const backup=async()=>{
+  j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  const downloaded=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});
+  const result=input.mode==='Audio only'&&['M4A','WAV'].includes(input.container)
+   ?await convertAudio(downloaded,j.dir,input.container,{onProgress:p=>Object.assign(j,p)})
+   :downloaded;
+  Object.assign(j,result,{expiresAt:now()+600000,state:'ready',stage:'Ready',progressPercent:100,
+   estimatedSecondsRemaining:null,progressSource:null,failureCode:null,error:null,canRetryWithDifferentFormat:false});
+  successful.set(j.requestKey,j.id);
+ };
  try{await mkdir(j.dir,{recursive:true,mode:0o700});
  if(ownedEngineConfig&&now()>=ownedRetryAt){
   try{await tryOwned();return}
