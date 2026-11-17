@@ -3,7 +3,7 @@
  * Never pass a title, filename or other user content to a filesystem path.
  */
 const BAD_CHARS=/[<>:"/\\|?*\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g;
-const ALLOWED_EXT=new Set(['mp4','webm','mkv','mp3','m4a','wav','ogg','opus','mov']);
+const ALLOWED_EXT=new Set(['mp4','webm','mkv','mp3','m4a','wav','ogg','opus','mov','aac','flac','weba','oga','mka','aiff','m4b','m4r','ape','ac3','mp2','wma']);
 const MAX_TITLE=82;
 
 export function safeMediaTitle(raw){
