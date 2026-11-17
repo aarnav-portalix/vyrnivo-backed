@@ -1,0 +1,37 @@
+name: Verify Vyrnivo premium UI across device widths
+on:
+  push:
+    branches: [main, feat/fluid-ui-human-file-names]
+    paths:
+      - src/App.jsx
+      - src/style.css
+      - scripts/responsive-ui-smoke.mjs
+      - .github/workflows/responsive-ui-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build app and install Chromium test runner
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install chromium --with-deps
+          npm run build
+      - name: Test UI and screenshot mobile, tablet and desktop layouts
+        run: node scripts/responsive-ui-smoke.mjs
+      - name: Preserve device screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyrnivo-responsive-screenshots
+          path: responsive-artifacts/*.png
+          if-no-files-found: ignore
+          retention-days: 4

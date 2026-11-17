@@ -74,6 +74,7 @@ function App(){
  const [page,setPage]=useState(pages.includes(initialPage)?initialPage:legalSections.includes(initialPage)?'about':'download');
  const [legalSection,setLegalSection]=useState(legalSections.includes(initialPage)?initialPage:'privacy');
  const [url,setUrl]=useState('');
+ const [selectedResult,setSelectedResult]=useState(null);
  const [mode,setMode]=useState(()=>saved('vyrnivo-mode','Video + audio'));
  const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
  const [container,setContainer]=useState('MP4');
@@ -102,6 +103,7 @@ function App(){
  const notifyTimer=useRef(null);
  const searchAbort=useRef(null);
  const inputRef=useRef(null);
+ const panelRef=useRef(null);
  const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
  const refreshStatus=async()=>{try{const r=await fetch('/api/downloads/status');const s=await r.json();setStatus(r.ok?s:{enabled:false})}catch{setStatus({enabled:false})}};
  useEffect(()=>{let alive=true;fetch('/api/security/status').then(r=>{if(!r.ok)throw Error('Security status unavailable');return r.json()}).then(data=>{if(alive)setHumanStatus({enabled:data.enabled===true,siteKey:data.enabled===true?data.siteKey:null})}).catch(()=>{if(alive)setHumanStatus({enabled:false,siteKey:null})});return()=>{alive=false}},[]);
@@ -138,6 +140,32 @@ function App(){
   heartbeat();
   return()=>{live=false;clearInterval(timer);document.removeEventListener('visibilitychange',heartbeat);window.removeEventListener('focus',heartbeat)};
  },[]);
+ useEffect(()=>{
+  // Smooth mouse-only spotlight and micro-parallax. No React rerender per pointer event.
+  const panel=panelRef.current;
+  if(page!=='download'||!panel||!window.matchMedia('(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference)').matches)return;
+  let frame=0;
+  const move=e=>{
+   const rect=panel.getBoundingClientRect();
+   const x=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+   const y=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
+   cancelAnimationFrame(frame);
+   frame=requestAnimationFrame(()=>{
+    panel.style.setProperty('--glow-x',Math.round(x*100)+'%');
+    panel.style.setProperty('--glow-y',Math.round(y*100)+'%');
+    panel.style.setProperty('--tilt-x',((.5-y)*2.4).toFixed(2)+'deg');
+    panel.style.setProperty('--tilt-y',((x-.5)*2.4).toFixed(2)+'deg');
+   });
+  };
+  const reset=()=>{
+   cancelAnimationFrame(frame);
+   panel.style.setProperty('--tilt-x','0deg');panel.style.setProperty('--tilt-y','0deg');
+   panel.style.setProperty('--glow-x','50%');panel.style.setProperty('--glow-y','10%');
+  };
+  panel.addEventListener('pointermove',move,{passive:true});
+  panel.addEventListener('pointerleave',reset);
+  return()=>{panel.removeEventListener('pointermove',move);panel.removeEventListener('pointerleave',reset);cancelAnimationFrame(frame)};
+ },[page]);
  useEffect(()=>persist('vyrnivo-mode',mode),[mode]);
  useEffect(()=>persist('vyrnivo-quality',quality),[quality]);
  useEffect(()=>{try{localStorage.removeItem('dw3lastJob')}catch{}},[]);
@@ -167,7 +195,7 @@ function App(){
   try{
    const clip=(await navigator.clipboard.readText()).trim();
    if(!/^https?:\/\//i.test(clip)){showToast('Copy a video link first.');return}
-   setUrl(clip);setJob(null);setFormError('');inputRef.current?.focus()
+   setUrl(clip);setSelectedResult(null);setJob(null);setFormError('');inputRef.current?.focus()
   }catch{showToast('Tap the link field and use Paste.')}
  }
  const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&['MP3','M4A','WAV'].includes(container));
@@ -183,7 +211,7 @@ function App(){
   setHumanCheckOpen(false);
   setBusy(true);setFormError('');setJob(null);
   try{
-   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
+   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
    setJob(data);
@@ -211,7 +239,7 @@ function App(){
  const chooseResult=item=>{
   if(!publicMediaKinds.has(item.kind))return;
   setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
-  setJob(null);setFormError('');setPreview(null);nav('download');
+  setSelectedResult({url:item.url,title:item.title});setJob(null);setFormError('');setPreview(null);nav('download');
   showToast('Link added. Choose a format and download.')
  };
  const isInstagram=searchSource==='instagram';
@@ -240,7 +268,7 @@ function App(){
        <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
        <p className="processing-note">{Number.isFinite(remainingEstimate)?'Calculated from actual transfer speed. Final processing can add time.':'No reliable completion estimate available yet. Elapsed time is real.'}</p>
       </div>}
-      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
+      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
      {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'This video or backup may not offer 4K.':''}</span>{isYouTube(url)&&quality==='2160p · 4K'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
@@ -254,16 +282,16 @@ function App(){
    </nav>
   </header>
   <main className="content" id="main-content">
-   <div className="hero">
+   <div className="hero" key={page}>
     <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
     <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='discover'?'Discover videos, Shorts, channels, playlists, Reels and creators.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
    </div>
    {page==='download'&&
-     <section className="panel" aria-label="Video downloader">
+     <section className="panel surface-interactive" ref={panelRef} aria-label="Video downloader">
      <form onSubmit={startDownload}>
-      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('');setJob(null)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
-       {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setJob(null);setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
+      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setSelectedResult(null);setFormError('');setJob(null)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
+       {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setSelectedResult(null);setJob(null);setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
       </div>
       <div className="format-tabs" role="group" aria-label="Download format">
        {[['Video + audio','Video'],['Audio only','Audio'],['Video only','Video only']].map(([value,label])=><button type="button" key={value} className={'format-tab '+(mode===value?'active':'')} aria-pressed={mode===value} onClick={()=>setDownloadMode(value)}>{label}</button>)}
