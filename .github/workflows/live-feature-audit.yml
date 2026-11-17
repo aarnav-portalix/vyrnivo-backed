@@ -1,0 +1,21 @@
+name: Audit deployed Vyrnivo features
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-feature-audit.mjs
+      - .github/workflows/live-feature-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check live website without altering user data
+        run: node scripts/live-feature-audit.mjs
