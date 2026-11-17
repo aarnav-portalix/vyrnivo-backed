@@ -45,7 +45,7 @@ function friendlyError(message,source){
  if(/429|rate.limit|blocking this render server|too many requests/i.test(m))return 'The source is rate-limiting this server. Try again later or use another public link.';
  if(/403|sign.in|login|blocked|not allow/i.test(m))return 'This video could not be accessed. Try another public link.';
  if(/processing|busy/i.test(m))return 'Another video is being prepared. Try again shortly.';
- if(/format|quality/i.test(m))return 'That format is unavailable for this video. Try MP4 at 720p.';
+ if(/format|quality|retriev|backup|provider|source/i.test(m))return 'This video could not be prepared in that quality. Try another quality, such as 720p or Best available.';
  if(/expired/i.test(m))return 'This download link has expired. Start again.';
  if(m.length>150)return 'Could not prepare this video. Try a different link.';
  return m||('Could not download this '+source+' video.');
@@ -78,6 +78,7 @@ function App(){
  const [mode,setMode]=useState(()=>saved('vyrnivo-mode','Video + audio'));
  const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
  const [container,setContainer]=useState('MP4');
+ const [audioBitrate,setAudioBitrate]=useState('320 kbps');
  const [more,setMore]=useState(false);
  const [status,setStatus]=useState(null);
  const [humanStatus,setHumanStatus]=useState({enabled:false,siteKey:null});
@@ -211,7 +212,7 @@ function App(){
   setHumanCheckOpen(false);
   setBusy(true);setFormError('');setJob(null);
   try{
-   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
+   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(mode==='Audio only'?{audioBitrate:['WAV','Original audio'].includes(container)?'Source':audioBitrate}:{}),...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
    setJob(data);
@@ -248,13 +249,13 @@ function App(){
  const primaryBlocked=Number(status?.youtubeRetryAt)>tick;
  const backupBlocked=Number(status?.backupRetryAt)>tick;
  const remaining=until=>{const seconds=Math.max(0,Math.ceil((Number(until||0)-tick)/1000));return seconds>=60?Math.ceil(seconds/60)+' min':seconds+' sec'};
- const overallServiceLabel=status?.enabled===false?'Offline':primaryBlocked?(status?.freeFallbackEnabled&&!backupBlocked?'Backup ready to try':'Limited'):'Ready to try';
+ const overallServiceLabel=status?.enabled===false?'Offline':primaryBlocked?'Some videos limited':'Ready to try';
  const formatDuration=seconds=>{
   const value=Math.max(0,Math.floor(seconds||0));
   return Math.floor(value/60)+':'+String(value%60).padStart(2,'0');
  };
  const elapsedProcessing=job?.createdAt?Math.max(0,Math.floor((tick-job.createdAt)/1000)):(job?.elapsedSeconds||0);
- const remainingEstimate=job?.state==='processing'&&job?.progressSource==='measured-transfer'&&Number.isFinite(job?.estimatedSecondsRemaining)
+ const remainingEstimate=job?.state==='processing'&&['measured-transfer','reported-extractor','measured-conversion'].includes(job?.progressSource)&&Number.isFinite(job?.estimatedSecondsRemaining)
   ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining-(tick-(job?.progressUpdatedAt||tick))/1000))
   :null;
  const measuredProgress=Number.isFinite(job?.progressPercent);
@@ -263,13 +264,13 @@ function App(){
        <div className="loading-spinner" aria-hidden="true"/>
        <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p>
         <div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span>
-        <span>{Number.isFinite(remainingEstimate)?<>Approximately <b>{formatDuration(remainingEstimate)}</b> left</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Checking progress…'}</span></div>
+        <span>{Number.isFinite(remainingEstimate)?<>Approximately <b>{formatDuration(remainingEstimate)}</b> left</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Measuring progress…'}</span></div>
        </div>
        <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
-       <p className="processing-note">{Number.isFinite(remainingEstimate)?'Calculated from actual transfer speed. Final processing can add time.':'No reliable completion estimate available yet. Elapsed time is real.'}</p>
+       <p className="processing-note">{Number.isFinite(remainingEstimate)?'Calculated from actual transfer speed. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
       {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
-     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'This video or backup may not offer 4K.':''}</span>{isYouTube(url)&&quality==='2160p · 4K'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
  </>;
@@ -297,16 +298,17 @@ function App(){
        {[['Video + audio','Video'],['Audio only','Audio'],['Video only','Video only']].map(([value,label])=><button type="button" key={value} className={'format-tab '+(mode===value?'active':'')} aria-pressed={mode===value} onClick={()=>setDownloadMode(value)}>{label}</button>)}
       </div>
       <div className="form-actions">
-       <button className={'options-btn '+(more?'is-open':'')} type="button" aria-expanded={more} aria-controls="download-options" onClick={()=>setMore(v=>!v)}><Icon name="tune" size={18}/> {mode==='Audio only'?container:quality} <span aria-hidden="true">{more?'−':'+'}</span></button>
+       <button className={'options-btn '+(more?'is-open':'')} type="button" aria-expanded={more} aria-controls="download-options" onClick={()=>setMore(v=>!v)}><Icon name="tune" size={18}/> {mode==='Audio only'?(['WAV','Original audio'].includes(container)?container:audioBitrate+' · '+container):quality} <span aria-hidden="true">{more?'−':'+'}</span></button>
        <button type="submit" className="cta" disabled={busy||status?.enabled===false}>{busy?'Starting…':'Download'}<Icon name="arrow" size={19}/></button>
       </div>
       {more&&<div className="advanced" id="download-options">
        {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>{setQuality(e.target.value);setJob(null)}}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
-       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>{mode==='Audio only'&&<p className="audio-format-help">MP3, M4A and WAV are supported through available audio sources. Original audio needs direct source access.</p>}
+       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>{mode==='Audio only'&&<p className="audio-format-help">120 and 320 kbps set the output bitrate. Encoding cannot restore quality missing from the original audio.</p>}
+       {mode==='Audio only'&&['MP3','M4A'].includes(container)&&<label>Audio quality<select aria-label="Audio quality" value={audioBitrate} onChange={e=>{setAudioBitrate(e.target.value);setJob(null)}}><option>320 kbps</option><option>120 kbps</option></select></label>}
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
-     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">This server is temporarily rate-limited. You can try another link; some downloads may still fail until the source or backup recovers.</div>}
+     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">Some videos may be temporarily unavailable. Try another quality or video if needed.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
      <div className="live-dashboard" aria-label="Live downloader status">
       <div className="live-overview">
@@ -315,10 +317,10 @@ function App(){
        <button type="button" className="status-toggle" aria-expanded={statusExpanded} onClick={()=>setStatusExpanded(x=>!x)}>{statusExpanded?'Hide details':'Details'} <Icon name="activity" size={15}/></button>
       </div>
       {statusExpanded&&<div className="provider-details">
-       <div className="provider-item"><div><strong>Main engine</strong></div><span className={'provider-state '+(primaryBlocked?'limited':'')}>{status?.enabled===false?'Offline':primaryBlocked?'Temporarily limited':'Ready to try'}</span></div>
-       <div className="provider-item"><div><strong>Backup engine</strong></div><span className={'provider-state '+(backupBlocked?'limited':'')}>{!status?.freeFallbackEnabled?'Unavailable':backupBlocked?'Temporarily limited':'Ready to try'}</span></div>
-       <p className="status-footnote">Status may change when a download starts. “Ready to try” does not guarantee every video. The online count estimates active browsers, not individual people.</p>
-       <button type="button" className="refresh-status" onClick={refreshStatus}><Icon name="activity" size={15}/> Refresh engine status</button>
+       <div className="provider-item"><div><strong>Download service</strong></div><span className={'provider-state '+(status?.enabled===false?'limited':'')}>{status?.enabled===false?'Offline':'Available to try'}</span></div>
+       <div className="provider-item"><div><strong>Source access</strong></div><span className={'provider-state '+(primaryBlocked?'limited':'')}>{primaryBlocked?'Some videos limited':'Depends on the video'}</span></div>
+       <p className="status-footnote">Availability and quality depend on the source. If a download fails, try another quality. Online count estimates browsers, not people.</p>
+       <button type="button" className="refresh-status" onClick={refreshStatus}><Icon name="activity" size={15}/> Refresh status</button>
       </div>}
       <div className="discover-teaser"><span>Looking for something to download? Search videos and Reels in Discover.</span><button type="button" onClick={()=>nav('discover')}><Icon name="search" size={15}/> Open Discover <Icon name="arrow" size={15}/></button></div>
      </div>
