@@ -78,3 +78,28 @@ test('actual FFmpeg creates a valid stereo WAV from a real MP3',{skip:!ffmpegAva
   assert.equal(audio.channels,2);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
+
+test('FFmpeg produces real 120 kbps and 320 kbps MP3 and AAC/M4A outputs',{skip:!ffmpegAvailable},async()=>{
+ for(const format of ['MP3','M4A']){
+  for(const [audioBitrate,target] of [['120 kbps',120000],['320 kbps',320000]]){
+   const dir=await mkdtemp(join(tmpdir(),'vyrnivo-bitrate-'));
+   try{
+    const source=await buildAudio(dir);
+    const report=[];
+    const result=await convertBackupAudio({path:source,name:'media.mp3',bytes:(await stat(source)).size},dir,format,{
+     audioBitrate,onProgress:x=>report.push(x)
+    });
+    assert.equal(result.name,'media.'+format.toLowerCase());
+    assert.equal(result.convertedLocally,true);
+    const probe=spawnSync('ffprobe',['-v','error','-select_streams','a:0',
+     '-show_entries','stream=codec_name,bit_rate','-of','json',result.path],{encoding:'utf8',timeout:15000});
+    assert.equal(probe.status,0,probe.stderr);
+    const [audio]=JSON.parse(probe.stdout).streams;
+    assert.equal(audio.codec_name,format==='MP3'?'mp3':'aac');
+    const br=Number(audio.bit_rate);
+    assert.ok(br>target*.79&&br<target*1.23,format+' '+audioBitrate+' actual bitrate='+br);
+    assert.ok(report.some(x=>String(x.stage).includes('Converting to')));
+   }finally{await rm(dir,{recursive:true,force:true})}
+  }
+ }
+});
