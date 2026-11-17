@@ -1,0 +1,27 @@
+name: Probe Discover v3 native accuracy
+on:
+  push:
+    branches: [feat/discover-source-accurate-v3]
+    paths:
+      - worker/search.mjs
+      - worker/youtube-official.mjs
+      - worker/ig-index.mjs
+      - worker/reels.mjs
+      - worker/ig-creators.mjs
+      - worker/search-quality.mjs
+      - scripts/discover-accuracy-probe.mjs
+      - .github/workflows/discover-accuracy-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate actual public search results and relevance
+        run: node scripts/discover-accuracy-probe.mjs
