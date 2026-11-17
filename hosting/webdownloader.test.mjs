@@ -49,3 +49,21 @@ test('provider 429 respects Retry-After; HTML masquerading as file is rejected',
   );
  }finally{await rm(dir,{recursive:true,force:true})}
 });
+
+test('one missing YouTube video never places all other videos in provider cooldown',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'vyrnivo-specific-video-'));
+ try{
+  await assert.rejects(
+   downloadViaFreeProvider({...input,quality:'2160p · 4K'},dir,{
+    fetchImpl:async()=>new Response('video unavailable',{status:404})
+   }),
+   error=>error.code==='FREE_PROVIDER_MEDIA_UNAVAILABLE'&&error.retryAfterMs===0
+  );
+  await assert.rejects(
+   downloadViaFreeProvider(input,dir,{
+    fetchImpl:async()=>new Response('provider could not retrieve this source',{status:502})
+   }),
+   error=>error.code==='FREE_PROVIDER_UNAVAILABLE'&&error.retryAfterMs===0
+  );
+ }finally{await rm(dir,{recursive:true,force:true})}
+});

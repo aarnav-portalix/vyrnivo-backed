@@ -38,9 +38,11 @@ const faqs=[
  ['Do I need an account?','No. Vyrnivo currently works without signing in.']
 ];
 const isYouTube=url=>/(?:youtube\.com|youtu\.be)/i.test(url||'');
+const publicMediaKinds=new Set(['video','short','instagram']);
+const discoverTypes={youtube:[['all','All'],['videos','Videos'],['shorts','Shorts'],['channels','Channels'],['playlists','Playlists']],instagram:[['reels','Reels'],['creators','Creators']]};
 function friendlyError(message,source){
  const m=String(message||'');
- if(/429|rate.limit|blocking this render server|too many requests/i.test(m))return 'YouTube downloads are unavailable right now. Try again later.';
+ if(/429|rate.limit|blocking this render server|too many requests/i.test(m))return 'The source is rate-limiting this server. Try again later or use another public link.';
  if(/403|sign.in|login|blocked|not allow/i.test(m))return 'This video could not be accessed. Try another public link.';
  if(/processing|busy/i.test(m))return 'Another video is being prepared. Try again shortly.';
  if(/format|quality/i.test(m))return 'That format is unavailable for this video. Try MP4 at 720p.';
@@ -82,6 +84,9 @@ function App(){
  const [statusExpanded,setStatusExpanded]=useState(false);
  const [presence,setPresence]=useState(null);
  const [searchSource,setSearchSource]=useState('youtube');
+ const [searchKind,setSearchKind]=useState('all');
+ const [searchUrl,setSearchUrl]=useState('');
+ const [suggestedProfile,setSuggestedProfile]=useState(null);
  const [job,setJob]=useState(()=>saved('dw3lastJob',null));
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
@@ -162,8 +167,9 @@ function App(){
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
- const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('')};
- const setDownloadMode=next=>{setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
+ const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
+ const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
+ const setDownloadMode=next=>{setJob(p=>p&&['failed','expired'].includes(p.state)?null:p);setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
   try{
    const clip=(await navigator.clipboard.readText()).trim();
@@ -179,7 +185,6 @@ function App(){
   const link=url.trim();
   if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
   if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
-  if(youtubeUnavailable){setFormError('YouTube downloads are temporarily unavailable. Try again later.');return}
   if(busy)return;
   if(humanStatus.enabled&&!verifiedToken){setHumanCheckOpen(true);return}
   setHumanCheckOpen(false);
@@ -240,16 +245,17 @@ function App(){
   e?.preventDefault?.();
   const q=query.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
   searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;
-  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);
+  setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);setSuggestedProfile(null);
   try{
-   const r=await fetch('/api/search/'+searchSource+'?q='+encodeURIComponent(q),{signal:controller.signal});
+   const r=await fetch('/api/search/'+searchSource+'?q='+encodeURIComponent(q)+'&kind='+encodeURIComponent(searchKind),{signal:controller.signal});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Search unavailable.');
-   setResults(data.items||[]);setSearchNote(data.notice||'');
+   setResults(data.items||[]);setSearchNote(data.notice||'');setSearchUrl(data.searchUrl||'');setSuggestedProfile(data.suggestedProfile||null);
   }catch(e){if(e.name!=='AbortError')setSearchError('Search unavailable. Try again.')}
   finally{if(searchAbort.current===controller)setSearching(false)}
  }
  const chooseResult=item=>{
+  if(!publicMediaKinds.has(item.kind))return;
   setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
   setFormError('');setPreview(null);nav('download');
   showToast('Link added. Choose a format and download.')
@@ -272,7 +278,7 @@ function App(){
  const jobView=<>
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div className="processing-copy"><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>{job.stage||'Working on your media…'}</p><div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span><span>{Number.isFinite(remainingEstimate)?remainingEstimate>0?<>About <b>{formatDuration(remainingEstimate)}</b> left</>:'Finishing…':'Calculating time…'}</span></div></div><div className="loading-track" aria-label={measuredProgress?'Processing '+Math.round(job.progressPercent)+' percent':'Processing'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.max(3,Math.min(100,job.progressPercent))+'%'}:{}}/></div><p className="processing-note">Time remaining is an estimate. Network speeds and video formats can change it.</p></div>}
      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
-     {job?.state==='failed'&&<div className="message error" role="alert">{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'This video or backup may not offer 4K.':''}</span>{isYouTube(url)&&quality==='2160p · 4K'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
  </>;
@@ -288,12 +294,12 @@ function App(){
    <div className="hero">
     <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='engine'?'BUILT BY AARNAV':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='engine'?<>Our own <em>engine.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
-    <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':page==='discover'?'Search YouTube videos and public Instagram Reels in one place.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
+    <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='engine'?'Explore our first-party media converter and licensed sources.':page==='discover'?'Discover videos, Shorts, channels, playlists, Reels and creators.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
    </div>
    {page==='download'&&
      <section className="panel" aria-label="Video downloader">
      <form onSubmit={startDownload}>
-      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('')}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
+      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('');setJob(p=>p&&['failed','expired'].includes(p.state)?null:p)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
        {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
       </div>
       <div className="format-tabs" role="group" aria-label="Download format">
@@ -301,7 +307,7 @@ function App(){
       </div>
       <div className="form-actions">
        <button className={'options-btn '+(more?'is-open':'')} type="button" aria-expanded={more} aria-controls="download-options" onClick={()=>setMore(v=>!v)}><Icon name="tune" size={18}/> {mode==='Audio only'?container:quality} <span aria-hidden="true">{more?'−':'+'}</span></button>
-       <button type="submit" className="cta" disabled={busy||status?.enabled===false||youtubeUnavailable}>{busy?'Starting…':youtubeUnavailable?'Temporarily unavailable':'Download'}<Icon name="arrow" size={19}/></button>
+       <button type="submit" className="cta" disabled={busy||status?.enabled===false}>{busy?'Starting…':'Download'}<Icon name="arrow" size={19}/></button>
       </div>
       {more&&<div className="advanced" id="download-options">
        {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
@@ -309,7 +315,7 @@ function App(){
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
-     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">YouTube downloads aren't available right now. Try again later.</div>}
+     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">This server is temporarily rate-limited. You can try another link; some downloads may still fail until the source or backup recovers.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
      <div className="live-dashboard" aria-label="Live downloader status">
       <div className="live-overview">
@@ -367,21 +373,23 @@ function App(){
    </section>}
    {page==='about'&&<LegalCenter selected={legalSection} onSelect={openLegal}/>} 
    {page==='discover'&&<section className="discover-hub" aria-label="Search videos and public Reels">
-     <div className="discover-intro"><strong>Find something worth saving</strong><p>Search public videos and Reels, preview results, then send a link straight to the Download tab. Some results may be unavailable.</p></div>
+     <div className="discover-intro"><strong>Find videos, Shorts & creators</strong><p>Browse public search results. Preview media, open channels or profiles, and send eligible video links to Download. Some content may be unavailable.</p></div>
      <div className="search-mode-tabs" role="group" aria-label="Search platform"><button type="button" className={searchSource==='youtube'?'active':''} aria-pressed={searchSource==='youtube'} onClick={()=>switchSearchSource('youtube')}><Icon name="youtube" size={16}/> YouTube</button><button type="button" className={searchSource==='instagram'?'active':''} aria-pressed={searchSource==='instagram'} onClick={()=>switchSearchSource('instagram')}><Icon name="instagram" size={16}/> Instagram</button></div>
+    <div className="discover-filters" role="group" aria-label="Result type">{discoverTypes[searchSource].map(([value,label])=><button key={value} type="button" aria-pressed={searchKind===value} className={searchKind===value?'active':''} onClick={()=>switchSearchKind(value)}>{label}</button>)}</div>
     <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
      <form className="search-panel" onSubmit={search}>
-      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={isInstagram?'Search Reels, topics, hashtags, creators…':'Search videos, creators, music…'} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
+      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={isInstagram?(searchKind==='creators'?'Search creator names or @handles…':'Search Reels, topics, hashtags…'):(searchKind==='channels'?'Search YouTube channels…':searchKind==='shorts'?'Search Shorts…':'Search videos, channels and music…')} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
       <button type="submit" className="cta" disabled={searching}>{searching?'Searching…':'Search'} <Icon name="arrow" size={18}/></button>
      </form>
      {searchError&&<div className="message error" role="alert">{searchError}</div>}
+     {!!searchNote&&searched&&<p className="search-source-note" role="status">{searchNote} {searchUrl&&<a href={searchUrl} target="_blank" rel="noopener noreferrer">Open original search <Icon name="external" size={13}/></a>}</p>}
      {searching&&<div className="search-loading" role="status"><span className="loading-spinner"/> Searching…</div>}
      {!searching&&searched&&<div className="result-heading"><span>{results.length?results.length+' results for “'+searched+'”':'Results for “'+searched+'”'}</span>{results.length>0&&<button type="button" onClick={()=>{setResults([]);setSearched('');setQuery('')}}>Clear</button>}</div>}
-     {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={28}/><strong>No results found</strong><p>Try a different search or paste a direct video link.</p>{isInstagram&&<a href={'https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+searched)} target="_blank" rel="noopener noreferrer">Search the web <Icon name="external" size={15}/></a>}</div>}
+     {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={28}/><strong>No indexed results returned</strong><p>Try another search term or open the source website's complete search.</p>{suggestedProfile&&<a className="profile-suggestion" href={suggestedProfile.url} target="_blank" rel="noopener noreferrer">Open possible @{suggestedProfile.username} profile (not verified) <Icon name="external" size={15}/></a>}{searchUrl&&<a href={searchUrl} target="_blank" rel="noopener noreferrer">Open original search <Icon name="external" size={15}/></a>}</div>}
      {!!results.length&&<div className="results">
       {results.map(item=><article className="media-card" key={item.kind+'-'+item.id}>
-       <button className="media-image" type="button" onClick={()=>setPreview(item)} aria-label={'Preview '+item.title}>{item.kind==='instagram'?<span className="reel-art"><Icon name="instagram" size={38}/><small>REEL</small></span>:<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>}<span className="play-bubble"><Icon name="play" size={18}/></span></button>
-       <div className="media-content"><h2 title={item.title}>{item.title}</h2><p>{item.creator||'Public video'}</p><div className="media-actions"><button type="button" className="outline-btn" onClick={()=>setPreview(item)}>Preview</button><button type="button" className="mini-primary" onClick={()=>chooseResult(item)}>Use link <Icon name="arrow" size={16}/></button></div></div>
+       <div className="media-image">{publicMediaKinds.has(item.kind)?<button className="media-art-action" type="button" onClick={()=>setPreview(item)} aria-label={'Preview '+item.title}>{item.thumbnail?<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>:<span className="reel-art"><Icon name={isInstagram?'instagram':'video'} size={36}/><small>{item.kind==='instagram'?'REEL':'VIDEO'}</small></span>}<span className="play-bubble"><Icon name="play" size={18}/></span></button>:<a className="media-art-action" href={item.url} target="_blank" rel="noopener noreferrer" aria-label={'Open '+item.title}>{item.thumbnail?<img src={item.thumbnail} alt="" loading="lazy" decoding="async"/>:<span className="reel-art"><Icon name={isInstagram?'instagram':'youtube'} size={34}/><small>{item.kind==='creator'?'CREATOR':item.kind==='channel'?'CHANNEL':'PLAYLIST'}</small></span>}</a>}</div>
+       <div className="media-content"><span className="media-kind">{item.kind==='short'?'SHORT':String(item.kind||'video').toUpperCase()}</span><h2 title={item.title}>{item.title}</h2><p>{item.creator||'Public search result'}</p><div className="media-actions">{publicMediaKinds.has(item.kind)?<><button type="button" className="outline-btn" onClick={()=>setPreview(item)}>Preview</button><button type="button" className="mini-primary" onClick={()=>chooseResult(item)}>Use link <Icon name="arrow" size={16}/></button></>:<a className="outline-btn" href={item.url} target="_blank" rel="noopener noreferrer">{item.kind==='playlist'?'Open playlist':item.kind==='creator'?'Open creator':'Open channel'} <Icon name="external" size={14}/></a>}</div></div>
       </article>)}
      </div>}
     </section>

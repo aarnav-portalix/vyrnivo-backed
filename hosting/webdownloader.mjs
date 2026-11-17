@@ -44,20 +44,25 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
    body:JSON.stringify(payload),redirect:'error',signal
   });
  }catch{
-  throw new FreeProviderError('The free backup downloader is unreachable.','FREE_PROVIDER_UNAVAILABLE',120000);
+  throw new FreeProviderError('The backup service could not be reached. Try again later.','FREE_PROVIDER_UNAVAILABLE',0);
  }
  if(response.status===429){
   const header=Number(response.headers.get('retry-after'));
   const retryAfterMs=Number.isFinite(header)&&header>0?Math.min(header*1000,21600000):300000;
   throw new FreeProviderError('The free backup downloader reached its rate limit.','FREE_PROVIDER_RATE_LIMITED',retryAfterMs);
  }
- if(response.status===425)throw new FreeProviderError('The free backup is still processing this source.','FREE_PROVIDER_BUSY',120000);
+ if(response.status===425)throw new FreeProviderError('The backup is still preparing this video. Try again shortly.','FREE_PROVIDER_BUSY',0);
  if(!response.ok||!response.body){
-  throw new FreeProviderError('The free backup downloader could not retrieve this YouTube video.','FREE_PROVIDER_UNAVAILABLE',120000);
+  // A single unavailable video is NOT evidence that the entire downloader is offline.
+  // Reserve global cooldowns for explicit provider-wide rate limits (HTTP 429).
+  if([400,404,410,422,451].includes(response.status)){
+   throw new FreeProviderError('This video could not be retrieved by the backup. Other public videos may still work.','FREE_PROVIDER_MEDIA_UNAVAILABLE',0);
+  }
+  throw new FreeProviderError('The backup could not retrieve this video right now. Try another public link or retry later.','FREE_PROVIDER_UNAVAILABLE',0);
  }
  const type=(response.headers.get('content-type')||'').split(';')[0].toLowerCase().trim();
  const allowed=extension==='mp4'?['video/mp4','application/octet-stream']:['audio/mpeg','audio/mp3','application/octet-stream'];
- if(!allowed.includes(type))throw new FreeProviderError('The free backup did not return a real playable media file.','FREE_PROVIDER_INVALID_MEDIA',120000);
+ if(!allowed.includes(type))throw new FreeProviderError('The backup did not return a playable media file for this request.','FREE_PROVIDER_INVALID_MEDIA',0);
  const lengthHeader=response.headers.get('content-length');
  const length=Number(lengthHeader);
  if(lengthHeader!==null&&(!Number.isSafeInteger(length)||length<=0||length>MAX_BYTES))
@@ -75,7 +80,7 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  }catch(error){
   await rm(destination,{force:true});
   if(error instanceof FreeProviderError)throw error;
-  throw new FreeProviderError('The free backup video transfer was interrupted.','FREE_PROVIDER_UNAVAILABLE',120000);
+  throw new FreeProviderError('The backup transfer was interrupted. Try again later.','FREE_PROVIDER_UNAVAILABLE',0);
  }
  return {path:destination,name:'media.'+extension,bytes,provider:'WebDownloader (free public API)'};
 }

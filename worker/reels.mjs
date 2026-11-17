@@ -1,6 +1,7 @@
 import {instagram} from './instagram.mjs';
 import {indexedInstagram} from './ig-index.mjs';
 import {searx} from './searx.mjs';
+import {searchInstagramCreators} from './ig-creators.mjs';
 
 const cache=new Map();
 const canonical=item=>{
@@ -12,8 +13,12 @@ const canonical=item=>{
  }catch{return null}
 };
 
-export async function findReels(request,{searchIndex=indexedInstagram,searchPublic=instagram,searchSearx=searx,base,now=Date.now}={}){
- const query=(new URL(request.url).searchParams.get('q')||'').trim();
+export async function findReels(request,{searchIndex=indexedInstagram,searchPublic=instagram,searchSearx=searx,searchCreators=searchInstagramCreators,base,now=Date.now}={}){
+ const url=new URL(request.url);
+ const kind=url.searchParams.get('kind')||'reels';
+ if(!['reels','creators'].includes(kind))return Response.json({error:'Unsupported Instagram search type.'},{status:400});
+ if(kind==='creators')return searchCreators(request,{base,now});
+  const query=(new URL(request.url).searchParams.get('q')||'').trim();
  if(query.length<2||query.length>100)return Response.json({error:'Enter a topic between 2 and 100 characters.'},{status:400});
  const key=String(base||'')+'|'+query.toLocaleLowerCase();
  const hit=cache.get(key);
@@ -33,7 +38,8 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchPubl
    if(items.length===18)break;
   }
  }
- const data={items,query,topic,sourceURL,notice:items.length?
+ const searchUrl='https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+query);
+ const data={items,kind:'reels',query,topic,sourceURL,searchUrl,notice:items.length?
    'Public indexed/accessible Reel matches. Instagram may refuse preview or download for individual posts.':
    'No public Reel cards could be verified from this server. Open an indexed web search or paste a direct public Reel link.'};
  if(cache.size>100)cache.clear();

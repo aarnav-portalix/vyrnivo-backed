@@ -465,3 +465,38 @@ svg{flex-shrink:0}
  .loading-track span.measured,.loading-track span.indeterminate{animation:none;transition:none}
  .cta:active,.outline-btn:active,.tab:active,.format-tab:active,.status-toggle:active{transform:none}
 }
+
+/* Discover v2: compact, accessible result types and safe profile cards. */
+.discover-filters{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px}
+.discover-filters button{min-height:36px;padding:7px 13px;border-radius:12px;border:1px solid #ffffff2d;background:#ffffff0b;color:#c7b9d7;font-size:11px;font-weight:740;transition:background .16s ease,border-color .16s ease,transform .12s ease}
+.discover-filters button.active{background:#a580e737;border-color:#cfaaff84;color:#fff}
+.discover-filters button:hover{background:#b99de12d}
+.search-source-note{margin:13px 2px 4px;color:#b5a9ca;font-size:11px;line-height:1.65}
+.search-source-note a{display:inline-flex;gap:5px;align-items:center;color:#d8bcff;font-weight:650;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.media-image .media-art-action{border:0;display:block;width:100%;height:100%;padding:0;background:transparent;position:relative;color:inherit;cursor:pointer}
+.media-image .media-art-action>img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s ease}
+.media-card:hover .media-image .media-art-action>img{transform:scale(1.025)}
+.media-kind{display:inline-block;margin-bottom:5px;border:1px solid #c6a3f951;padding:3px 7px;border-radius:6px;color:#cdb0f8;font-size:9px;font-weight:800;letter-spacing:.065em}
+.media-actions a.outline-btn{display:flex;align-items:center;justify-content:center;gap:7px;min-height:43px;padding:10px 14px;text-decoration:none;font-size:12px;font-weight:750}
+.media-actions a.outline-btn:active{transform:scale(.98)}
+@media(max-width:520px){
+ .discover-hub{padding:14px;border-radius:18px}
+ .discover-intro{margin-bottom:12px}
+ .discover-intro strong{font-size:17px}
+ .discover-intro p{font-size:11px;line-height:1.55;margin-top:6px}
+ .discover-filters{gap:6px;margin:0 0 12px}
+ .discover-filters button{min-height:40px;padding:7px 10px;font-size:10px}
+ .search-source-note{font-size:10px}
+ .media-card{border-radius:14px}
+ .media-kind{font-size:8px}
+ .media-actions{gap:7px;flex-wrap:wrap}
+ .media-actions button,.media-actions a{font-size:11px}
+}
+@media(hover:none) and (pointer:coarse){
+ .discover-filters button{touch-action:manipulation}
+ .discover-filters button:active{transform:scale(.97);filter:brightness(1.12)}
+}
+@media(prefers-reduced-motion:reduce){
+ .discover-filters button:active,.media-actions a.outline-btn:active{transform:none}
+ .media-image .media-art-action>img{transition:none}
+}
