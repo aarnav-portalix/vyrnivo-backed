@@ -1,0 +1,39 @@
+name: Probe standalone Vyrnivo engine source access
+on:
+  push:
+    branches: [feat/independent-engine-source-probe]
+    paths:
+      - scripts/owned-engine-live-source.mjs
+      - .github/workflows/owned-engine-source-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the independent worker container
+        run: docker build -f Dockerfile.owned-worker -t vyrnivo-independent:probe .
+      - name: Start the worker with public backup disabled
+        run: |
+          docker run -d --rm --name vyrnivo-independent-probe -p 19949:10000 \
+            -e PORT=10000 \
+            -e OWN_DOWNLOADER_TOKEN=test-only-independent-worker-secret-123456789 \
+            vyrnivo-independent:probe
+          for i in {1..40}; do
+            if curl --silent --fail http://127.0.0.1:19949/health; then break; fi
+            sleep 2
+          done
+      - name: Verify real YouTube extraction with zero hosted API calls
+        env:
+          OWNED_ENGINE_TEST_URL: http://127.0.0.1:19949
+          OWN_DOWNLOADER_TOKEN: test-only-independent-worker-secret-123456789
+        run: node scripts/owned-engine-live-source.mjs
+      - name: Show worker errors on failure
+        if: failure()
+        run: docker logs vyrnivo-independent-probe --tail 40 || true
+      - name: Stop worker
+        if: always()
+        run: docker stop vyrnivo-independent-probe || true
