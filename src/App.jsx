@@ -162,12 +162,12 @@ function App(){
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
  const switchSearchSource=next=>{if(next===searchSource)return;searchAbort.current?.abort();setSearching(false);setSearchSource(next);setSearchKind(next==='instagram'?'reels':'all');setQuery('');setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
  const switchSearchKind=next=>{if(next===searchKind)return;searchAbort.current?.abort();setSearching(false);setSearchKind(next);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setSuggestedProfile(null)};
- const setDownloadMode=next=>{setJob(p=>p&&['failed','expired'].includes(p.state)?null:p);setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
+ const setDownloadMode=next=>{setJob(null);setMode(next);setContainer(next==='Audio only'?'MP3':'MP4');if(next==='Audio only')setQuality('Best available');else if(quality==='Best available')setQuality('720p')};
  async function pasteLink(){
   try{
    const clip=(await navigator.clipboard.readText()).trim();
    if(!/^https?:\/\//i.test(clip)){showToast('Copy a video link first.');return}
-   setUrl(clip);setFormError('');inputRef.current?.focus()
+   setUrl(clip);setJob(null);setFormError('');inputRef.current?.focus()
   }catch{showToast('Tap the link field and use Paste.')}
  }
  const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&container==='MP3');
@@ -211,7 +211,7 @@ function App(){
  const chooseResult=item=>{
   if(!publicMediaKinds.has(item.kind))return;
   setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
-  setFormError('');setPreview(null);nav('download');
+  setJob(null);setFormError('');setPreview(null);nav('download');
   showToast('Link added. Choose a format and download.')
  };
  const isInstagram=searchSource==='instagram';
@@ -226,12 +226,21 @@ function App(){
   return Math.floor(value/60)+':'+String(value%60).padStart(2,'0');
  };
  const elapsedProcessing=job?.createdAt?Math.max(0,Math.floor((tick-job.createdAt)/1000)):(job?.elapsedSeconds||0);
- const remainingEstimate=Number.isFinite(job?.estimatedTotalSeconds)
-  ?Math.max(0,Math.ceil(job.estimatedTotalSeconds-elapsedProcessing)):job?.estimatedSecondsRemaining;
+ const remainingEstimate=job?.state==='processing'&&job?.progressSource==='measured-transfer'&&Number.isFinite(job?.estimatedSecondsRemaining)
+  ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining-(tick-(job?.progressUpdatedAt||tick))/1000))
+  :null;
  const measuredProgress=Number.isFinite(job?.progressPercent);
  const jobView=<>
-     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"/><div className="processing-copy"><strong>{job.engine==='converter'?'Converting your file':'Preparing your file'}</strong><p>{job.stage||'Working on your media…'}</p><div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span><span>{Number.isFinite(remainingEstimate)?remainingEstimate>0?<>About <b>{formatDuration(remainingEstimate)}</b> left</>:'Finishing…':'Calculating time…'}</span></div></div><div className="loading-track" aria-label={measuredProgress?'Processing '+Math.round(job.progressPercent)+' percent':'Processing'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.max(3,Math.min(100,job.progressPercent))+'%'}:{}}/></div><p className="processing-note">Time remaining is an estimate. Network speeds and video formats can change it.</p></div>}
-     {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
+     {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite">
+       <div className="loading-spinner" aria-hidden="true"/>
+       <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p>
+        <div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span>
+        <span>{Number.isFinite(remainingEstimate)?<>Approximately <b>{formatDuration(remainingEstimate)}</b> left</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Checking progress…'}</span></div>
+       </div>
+       <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
+       <p className="processing-note">{Number.isFinite(remainingEstimate)?'Calculated from actual transfer speed. Final processing can add time.':'No reliable completion estimate available yet. Elapsed time is real.'}</p>
+      </div>}
+      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div><div className="ready-actions"><a href={job.downloadUrl} className="cta" download>Download file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
      {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'This video or backup may not offer 4K.':''}</span>{isYouTube(url)&&quality==='2160p · 4K'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
@@ -253,8 +262,8 @@ function App(){
    {page==='download'&&
      <section className="panel" aria-label="Video downloader">
      <form onSubmit={startDownload}>
-      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('');setJob(p=>p&&['failed','expired'].includes(p.state)?null:p)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
-       {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
+      <div className="url-row"><Icon name="download" size={20}/><input ref={inputRef} type="url" inputMode="url" autoCapitalize="off" autoCorrect="off" autoComplete="url" spellCheck={false} value={url} onChange={e=>{setUrl(e.target.value);setFormError('');setJob(null)}} placeholder="Paste a YouTube or Instagram link" aria-label="Video URL"/>
+       {url?<button type="button" className="icon-action" aria-label="Clear URL" onClick={()=>{setUrl('');setJob(null);setFormError('');inputRef.current?.focus()}}><Icon name="close" size={18}/></button>:<button type="button" className="paste-btn" onClick={pasteLink}><Icon name="paste" size={16}/> Paste</button>}
       </div>
       <div className="format-tabs" role="group" aria-label="Download format">
        {[['Video + audio','Video'],['Audio only','Audio'],['Video only','Video only']].map(([value,label])=><button type="button" key={value} className={'format-tab '+(mode===value?'active':'')} aria-pressed={mode===value} onClick={()=>setDownloadMode(value)}>{label}</button>)}
@@ -264,8 +273,8 @@ function App(){
        <button type="submit" className="cta" disabled={busy||status?.enabled===false}>{busy?'Starting…':'Download'}<Icon name="arrow" size={19}/></button>
       </div>
       {more&&<div className="advanced" id="download-options">
-       {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
-       <label>File type<select value={container} onChange={e=>setContainer(e.target.value)}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
+       {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>{setQuality(e.target.value);setJob(null)}}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
+       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
