@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {classifyExtractorFailure} from './source-failures.mjs';
 import {supportsFreeFallback,downloadViaFreeProvider} from './webdownloader.mjs';
 import {downloadViaOwnedEngine} from './owned-downloader.mjs';
-import {parseExtractorProgress} from './progress-metrics.mjs';
+import {parseExtractorTelemetry} from './progress-metrics.mjs';
 import {safeMediaTitle,fallbackMediaTitle,displayDownloadName,contentDisposition,titleFromExtractorLog} from './download-names.mjs';
 import {convertBackupAudio} from './audio-formats.mjs';
 import {probeVideoHeight} from './video-quality.mjs';
@@ -108,7 +108,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   }
  }
  if(useBackupFirst){await backup();return}let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500);
- const progress=parseExtractorProgress(stdout);
+ const progress=parseExtractorTelemetry(stdout);
  if(progress.percent!==null){j.stage='Downloading media';j.progressSource='reported-extractor';j.progressUpdatedAt=now();j.estimatedSecondsRemaining=progress.etaSeconds;j.progressPercent=Math.round(progress.percent*10)/10}});proc.stderr.on('data',d=>{stderr=(stderr+d).slice(-4000);if(/(?:HTTP Error|status(?: code)?)\s*:?\s*429\b|\b429 Too Many Requests\b|Too Many Requests/i.test(stderr))proc.kill('SIGTERM')});const timeout=setTimeout(()=>proc.kill('SIGKILL'),180000);const disk=setInterval(async()=>{try{let bytes=0;for(const f of await readdir(j.dir))bytes+=(await stat(join(j.dir,f))).size;if(bytes>400*1024*1024)proc.kill('SIGKILL')}catch{}},1000);const clear=()=>{clearTimeout(timeout);clearInterval(disk)};proc.on('error',e=>{clear();reject(e)});proc.on('close',code=>{clear();if(code===0)resolve();else {
  const failure=classifyExtractorFailure(stderr,{source:youtubeInput?'youtube':'instagram'});
  if(youtubeInput&&failure.code==='SOURCE_RATE_LIMITED')youtubeRetryAt=now()+1800000;
