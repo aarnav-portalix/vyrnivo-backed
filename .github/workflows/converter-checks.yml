@@ -1,9 +1,13 @@
 name: Vyrnivo Own Converter Checks
 on:
   push:
-    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot, feat/second-licensed-youtube-full-video, feat/automatic-licensed-alternatives]
+    branches: [main, feat/vyrnivo-first-party-converter, feat/youtube-licensed-source-pilot, feat/second-licensed-youtube-full-video, feat/automatic-licensed-alternatives, feat/private-converter-speed-progress]
     paths:
       - hosting/converter.mjs
+      - hosting/media-engine.mjs
+      - hosting/private-api.mjs
+      - hosting/media-engine.test.mjs
+      - hosting/private-api.test.mjs
       - hosting/commons-discovery.mjs
       - hosting/licensed-youtube.mjs
       - hosting/server.mjs
