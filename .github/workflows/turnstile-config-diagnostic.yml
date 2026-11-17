@@ -1,0 +1,21 @@
+name: Turnstile public configuration diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/turnstile-config-diagnostic.mjs
+      - .github/workflows/turnstile-config-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect live public key shape without exposing full values
+        run: node scripts/turnstile-config-diagnostic.mjs
