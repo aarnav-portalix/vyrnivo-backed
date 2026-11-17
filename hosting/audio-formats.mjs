@@ -68,7 +68,8 @@ export async function convertBackupAudio(mp3,dir,format,{
   if(format==='WAV'){
    const duration=await getAudioDuration(mp3.path,{spawnProcess});
    // WAV is uncompressed 44.1 kHz stereo PCM; never silently truncate a long file.
-   if(duration!==null&&duration*44100*2*2+4096>=MAX_BYTES){
+   if(duration===null)throw Error('Could not verify WAV duration safely. Choose MP3 or M4A instead.');
+   if(duration*44100*2*2+4096>=MAX_BYTES){
     throw Error('This audio would exceed the 200 MB WAV limit. Choose MP3 or M4A instead.');
    }
   }
