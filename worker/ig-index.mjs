@@ -11,7 +11,9 @@ export function parseIndexRss(xml){
   if(!m||seen.has(m.id))continue;
   seen.add(m.id);
   const raw=entry[1].match(/<title>([\s\S]*?)<\/title>/i)?.[1]||'Indexed public Reel';
-  items.push({...m,kind:'instagram',title:decode(raw.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1')).slice(0,180),creator:'Public Reel'});
+  const excerpt=entry[1].match(/<description>([\s\S]*?)<\/description>/i)?.[1]||'';
+  const strip=x=>decode(x.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim();
+  items.push({...m,kind:'instagram',title:strip(raw).slice(0,180),description:strip(excerpt).slice(0,350),creator:'Public Reel',source:'Indexed search result'});
   if(items.length===12)break;
  }
  return items;
@@ -20,7 +22,7 @@ export async function indexedInstagram(request,{fetcher=fetch,now=Date.now}={}){
  const q=(new URL(request.url).searchParams.get('q')||'').trim();
  if(q.length<2||q.length>100)return Response.json({error:'Enter a topic between 2 and 100 characters.'},{status:400});
  const key=q.toLowerCase();
- const old=cache.get(key);if(old&&now()-old.time<900000)return Response.json(old.data);
+ const old=cache.get(key);if(old&&now()-old.time<120000)return Response.json(old.data);
  const u=new URL('https://www.bing.com/search');
  u.searchParams.set('q','site:instagram.com/reel/ '+q);
  u.searchParams.set('format','rss');
