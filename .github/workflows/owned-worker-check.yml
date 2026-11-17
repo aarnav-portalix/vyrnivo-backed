@@ -1,0 +1,49 @@
+name: Vyrnivo Private Download Worker Docker Check
+on:
+  push:
+    branches: [main, feat/owned-private-download-engine]
+    paths:
+      - Dockerfile.owned-worker
+      - hosting/media-worker.mjs
+      - hosting/media-worker-server.mjs
+      - hosting/owned-downloader.mjs
+      - hosting/downloads.mjs
+      - .github/workflows/owned-worker-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build standalone worker container
+        run: docker build --file Dockerfile.owned-worker --tag vyrnivo-owned-engine:ci .
+      - name: Verify startup, secret auth and strict video validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name vyrnivo-owned-ci -p 19949:10000 \
+            -e PORT=10000 \
+            -e OWN_DOWNLOADER_TOKEN=test-only-worker-secret-token-for-ci-12345 \
+            vyrnivo-owned-engine:ci
+          trap 'docker rm -f vyrnivo-owned-ci >/dev/null 2>&1 || true' EXIT
+          for i in {1..35}; do
+            if curl --silent --fail http://127.0.0.1:19949/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:19949/health
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:19949/api/downloads/status)
+          test "$code" = 401
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer test-only-worker-secret-token-for-ci-12345' \
+            http://127.0.0.1:19949/api/downloads/status)
+          test "$code" = 200
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Authorization: Bearer test-only-worker-secret-token-for-ci-12345' \
+            -H 'Content-Type: application/json' \
+            --data '{"url":"https://example.org/not-a-video","mode":"Video + audio","quality":"720p","container":"MP4"}' \
+            http://127.0.0.1:19949/api/downloads)
+          test "$code" = 400
+          echo 'OWNED_WORKER_DOCKER_CHECK_PASSED: separate worker starts, rejects unauthenticated access, validates media'
