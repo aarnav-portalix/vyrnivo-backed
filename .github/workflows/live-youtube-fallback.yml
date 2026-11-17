@@ -1,4 +1,5 @@
 # Post-upgrade regression: verify real YouTube bytes after the fast-converter/security update.
+# Regression after deploying optional Vyrnivo-owned private worker integration.
 name: Verify deployed free YouTube backup
 on:
   push:
