@@ -2,6 +2,7 @@ import {instagram} from './instagram.mjs';
 import {indexedInstagram} from './ig-index.mjs';
 import {searx} from './searx.mjs';
 import {searchInstagramCreators} from './ig-creators.mjs';
+import {relevantIndexedItems,nativeInstagramSearchUrl} from './search-quality.mjs';
 
 const cache=new Map();
 const canonical=item=>{
@@ -9,7 +10,7 @@ const canonical=item=>{
   const u=new URL(item?.url);
   const code=u.pathname.match(/^\/reel\/([a-zA-Z0-9_-]{6,30})\/?$/)?.[1];
   if(u.protocol!=='https:'||!['instagram.com','www.instagram.com'].includes(u.hostname)||!code)return null;
-  return {id:code,kind:'instagram',title:String(item.title||'Public Instagram Reel').slice(0,180),creator:String(item.creator||'Instagram').slice(0,80),url:'https://www.instagram.com/reel/'+code+'/'};
+  return {id:code,kind:'instagram',title:String(item.title||'Public Instagram Reel').slice(0,180),creator:String(item.creator||'Instagram').slice(0,80),description:String(item.description||'').slice(0,350),source:item.source||'Public index',url:'https://www.instagram.com/reel/'+code+'/'};
  }catch{return null}
 };
 
@@ -18,13 +19,16 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchPubl
  const kind=url.searchParams.get('kind')||'reels';
  if(!['reels','creators'].includes(kind))return Response.json({error:'Unsupported Instagram search type.'},{status:400});
  if(kind==='creators')return searchCreators(request,{base,now});
-  const query=(new URL(request.url).searchParams.get('q')||'').trim();
- if(query.length<2||query.length>100)return Response.json({error:'Enter a topic between 2 and 100 characters.'},{status:400});
+ const query=url.searchParams.get('q')?.trim()||'';
+ if(query.length<2||query.length>200)return Response.json({error:'Enter a topic or public Reel URL (2–200 characters).'},{status:400});
+ const searchUrl=nativeInstagramSearchUrl(query);
+ const direct=canonical({url:query,title:'Instagram Reel',creator:'Public Reel',source:'Exact link entered'});
+ if(direct)return Response.json({items:[{...direct,matchType:'direct-link'}],kind:'reels',query,searchUrl,
+  notice:'This is the exact Reel link you entered. Its availability is controlled by Instagram.'});
  const key=String(base||'')+'|'+query.toLocaleLowerCase();
  const hit=cache.get(key);
- if(hit&&now()-hit.time<(hit.data.items.length?900000:120000))return Response.json(hit.data);
- // Run only bounded public searches. A denied source is not proof there are no Reels.
- const tasks=[searchIndex(request),searchPublic(request)];
+ if(hit&&now()-hit.time<(hit.data.items.length?120000:20000))return Response.json(hit.data);
+  const tasks=[searchIndex(request),searchPublic(request)];
  if(base)tasks.unshift(searchSearx(request,base));
  const results=await Promise.allSettled(tasks);
  const seen=new Set(),items=[];let topic=null,sourceURL=null;
@@ -38,10 +42,12 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchPubl
    if(items.length===18)break;
   }
  }
- const searchUrl='https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+query);
- const data={items,kind:'reels',query,topic,sourceURL,searchUrl,notice:items.length?
-   'Public indexed/accessible Reel matches. Instagram may refuse preview or download for individual posts.':
-   'No public Reel cards could be verified from this server. Open an indexed web search or paste a direct public Reel link.'};
+ const matched=relevantIndexedItems(items,query,{max:18});
+ const data={items:matched,kind:'reels',query,topic,sourceURL,searchUrl,
+  indexedSearchUrl:'https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+query),
+  matchType:'public-index',notice:matched.length?
+   'Matching publicly indexed Reel links. These are not Instagram live search results; open a Reel to confirm it is still available.':
+   'No trustworthy matching Reels were returned by public indexes. Open this search on Instagram for live results.'};
  if(cache.size>100)cache.clear();
  cache.set(key,{time:now(),data});
  return Response.json(data,{headers:{'cache-control':'no-store'}});
