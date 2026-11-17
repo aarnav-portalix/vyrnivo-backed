@@ -5,6 +5,7 @@ import {createPresence} from './presence.mjs';
 import {allowApi} from './access.mjs';
 import {createHumanVerification} from './security.mjs';
 import {setSecurityHeaders} from './security-headers.mjs';
+import {validateOwnedEngineConfig} from './owned-downloader.mjs';
 import {createPrivateConversionApi} from './private-api.mjs';
 import worker from '../dist/server/index.js';
 const env=process.env;
@@ -14,7 +15,10 @@ const humanCheck=createHumanVerification({
  expectedHostname:env.TURNSTILE_EXPECTED_HOSTNAME||'vyrnivo-downloads.onrender.com'
 });
 if(humanCheck.incomplete)console.warn('Turnstile setup incomplete; challenge stays disabled until both keys exist.');
-const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify});
+const ownedEngineConfig=validateOwnedEngineConfig(env.OWN_DOWNLOADER_URL||'',env.OWN_DOWNLOADER_TOKEN||'');
+if((env.OWN_DOWNLOADER_URL||env.OWN_DOWNLOADER_TOKEN)&&!ownedEngineConfig)
+ console.warn('Private download engine configuration is incomplete or invalid; preserving existing downloaders.');
+const downloads=await createDownloads({enabled:env.DOWNLOADS_ENABLED==='true',python:env.PYTHON||'python3',freeFallbackEnabled:env.FREE_YOUTUBE_BACKUP!=='false',verifyToken:humanCheck.verify,ownedEngineConfig});
 let privateApi;
 const converter=await createConverter({enabled:env.DOWNLOADS_ENABLED==='true',onFinished:event=>privateApi?.notify(event)});
 privateApi=createPrivateConversionApi({

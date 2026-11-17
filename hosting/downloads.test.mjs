@@ -182,3 +182,40 @@ test('download creation is blocked until a verified human token is supplied',asy
   assert.equal(accepted.json.state,'processing');
  }finally{manager.close()}
 });
+
+test('a configured Vyrnivo-owned worker is used before local or public fallback',async()=>{
+ const id='123e4567-e89b-42d3-a456-426614174010';
+ const token='very-long-private-worker-test-secret-012345';
+ const content=Buffer.alloc(512,0x5a);
+ let localCalls=0,remoteCalls=0,response;
+ const manager=await createDownloads({
+  enabled:true,freeFallbackEnabled:true,
+  ownedEngineConfig:{origin:'https://private-worker.example.org',token},
+  spawnProcess:()=>{localCalls++;throw Error('The private worker succeeded; local extractor must not run');},
+  fetchImpl:async(url,init)=>{
+   remoteCalls++;assert.equal(init.headers.Authorization,'Bearer '+token);
+   const path=new URL(url).pathname;
+   if(path==='/api/downloads')return Response.json({id,state:'processing'});
+   if(path==='/api/downloads/'+id)return Response.json({id,state:'ready',name:'media.mp4',bytes:content.length,downloadUrl:'/api/downloads/'+id+'/file'});
+   if(path==='/api/downloads/'+id+'/file')return new Response(content,{status:200,headers:{'content-length':String(content.length),'content-type':'application/octet-stream'}});
+   throw Error('Unexpected request to '+path);
+  }
+ });
+ try{
+  const req=Readable.from([Buffer.from(JSON.stringify(input))]);req.method='POST';
+  const res={writeHead(status){this.status=status},end(body){response=JSON.parse(body)}};
+  await manager.handle(req,res,'/api/downloads');
+  assert.equal(res.status,202);
+  const jobId=response.id;
+  for(let i=0;i<90;i++){
+   await new Promise(resolve=>setTimeout(resolve,30));
+   await manager.handle({method:'GET'},res,'/api/downloads/'+jobId);
+   if(response.state!=='processing')break;
+  }
+  assert.equal(response.state,'ready',response.error);
+  assert.equal(response.bytes,content.length);
+  assert.equal(response.provider,'Vyrnivo Private Engine');
+  assert.equal(localCalls,0);
+  assert.equal(remoteCalls,3);
+ }finally{manager.close()}
+});
