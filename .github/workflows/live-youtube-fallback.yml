@@ -1,3 +1,4 @@
+# Post-upgrade regression: verify real YouTube bytes after the fast-converter/security update.
 name: Verify deployed free YouTube backup
 on:
   push:
