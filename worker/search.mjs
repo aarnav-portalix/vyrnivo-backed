@@ -97,7 +97,15 @@ export function parseYouTubeItems(data,kind='all'){
     thumbnail:picture(sh.thumbnail,id),source:'YouTube search'});
   }
   const lock=obj.lockupViewModel;
-  if(lock&&validVideoId(lock.contentId)&&/VIDEO/i.test(String(lock.contentType||''))){
+  if(lock?.contentType==='LOCKUP_CONTENT_TYPE_PLAYLIST'&&validPlaylist(lock.contentId)){
+   const id=lock.contentId;
+   add({id,kind:'playlist',url:'https://www.youtube.com/playlist?list='+encodeURIComponent(id),
+    title:plain(lock.metadata?.lockupMetadataViewModel?.title)||'YouTube playlist',
+    creator:plain(lock.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text),
+    thumbnail:picture(lock.contentImage?.collectionThumbnailViewModel?.primaryThumbnail?.thumbnailViewModel?.image,null,true),
+    source:'YouTube search'});
+  }
+  if(lock&&validVideoId(lock.contentId)&&lock.contentType==='LOCKUP_CONTENT_TYPE_VIDEO'){
    const id=lock.contentId;
    add({id,kind:'video',url:'https://www.youtube.com/watch?v='+id,
     title:plain(lock.metadata?.lockupMetadataViewModel?.title)||'YouTube video',
