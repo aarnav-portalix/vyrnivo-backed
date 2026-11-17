@@ -500,3 +500,50 @@ svg{flex-shrink:0}
  .discover-filters button:active,.media-actions a.outline-btn:active{transform:none}
  .media-image .media-art-action>img{transition:none}
 }
+
+/* Lightweight, fluid interactions after retiring the unused Our Engine tab. */
+:root{color-scheme:dark;scroll-behavior:smooth}
+*{-webkit-tap-highlight-color:transparent}
+button,a,input,select{touch-action:manipulation}
+button,.tab,.cta,.format-tab,.outline-btn,.options-btn,.status-toggle{transition-property:transform,background-color,border-color,color,opacity,box-shadow;transition-duration:.16s;transition-timing-function:cubic-bezier(.2,.75,.2,1)}
+.tab:active,.format-tab:active,.cta:active,.options-btn:active,.paste-btn:active,.mini-primary:active,.status-toggle:active,.discover-filters button:active{transform:scale(.975)}
+.tab:focus-visible,.cta:focus-visible,.options-btn:focus-visible,.format-tab:focus-visible{outline:2px solid #eacfff;outline-offset:2px}
+.loading-track span.measured{transition:width .4s cubic-bezier(.25,.8,.25,1)}
+.processing-time{font-variant-numeric:tabular-nums}
+.content,.panel,.discover-hub,.media-card{min-width:0}
+@media(max-width:800px){
+ .topbar{padding:18px 20px 12px}
+ .hero{margin:18px auto 24px}
+ .content{padding:13px 18px 82px}
+ .panel{padding:19px}
+ .tabs{gap:4px}
+ .tab{padding:9px 13px}
+ .ambient span{animation:none;opacity:.12;filter:blur(65px)}
+}
+@media(max-width:520px){
+ .tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .tab{min-width:0;min-height:52px}
+ .content{padding:7px 12px calc(102px + env(safe-area-inset-bottom))}
+ .hero{margin:8px auto 16px}
+ .hero h1{font-size:clamp(30px,8.4vw,39px)}
+ .hero>p:last-child{font-size:11px}
+ .panel{padding:13px;border-radius:18px}
+ .url-row{gap:8px;min-height:52px;padding:6px 5px 10px}
+ .url-row input{font-size:16px}
+ .format-tabs{gap:5px}
+ .format-tab{min-width:0;min-height:44px}
+ .form-actions{gap:8px;margin-top:12px}
+ .options-btn,.cta{min-height:46px;border-radius:12px}
+ .live-dashboard{margin-top:12px}
+ .processing-time{gap:6px 12px;flex-wrap:wrap}
+ .processing-note{font-size:10px;line-height:1.5}
+ .ambient{background:radial-gradient(ellipse at 50% 13%,#1b1430 0,transparent 67%),#090913}
+ .ambient span{display:none}
+ .discover-hub,.live-dashboard{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+@media (prefers-reduced-motion:reduce){
+ :root{scroll-behavior:auto}
+ .hero,.media-card,.loading-track span,.ambient span{animation:none!important}
+ button,.tab,.cta,.format-tab,.outline-btn,.options-btn,.status-toggle,.loading-track span.measured{transition:none!important}
+ .tab:active,.format-tab:active,.cta:active,.options-btn:active,.status-toggle:active{transform:none}
+}
