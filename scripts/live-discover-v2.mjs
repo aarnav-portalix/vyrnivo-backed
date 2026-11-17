@@ -9,7 +9,7 @@ const get=async(path)=>{
 const json=async(path)=>(await get(path)).json();
 const app=await (await get('/app.js')).text();
 const css=await (await get('/app.css')).text();
-for(const marker of ['discover-filters','Try 720p','Open creator','Open channel','Open playlist','Search Shorts','Built by Aarnav']){
+for(const marker of ['discover-filters','Try 720p','Open creator','Open channel','Open playlist','Search Shorts','Built by Aarnav12']){
  assert.ok(app.includes(marker),'Live app missing '+marker);
 }
 assert.match(css,/\.discover-filters/);
