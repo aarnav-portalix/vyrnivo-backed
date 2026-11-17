@@ -170,7 +170,7 @@ function App(){
    setUrl(clip);setJob(null);setFormError('');inputRef.current?.focus()
   }catch{showToast('Tap the link field and use Paste.')}
  }
- const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&container==='MP3');
+ const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&['MP3','M4A','WAV'].includes(container));
  const freeBackupReady=status?.freeFallbackEnabled&&freeBackupCompatible&&Number(status?.backupRetryAt||0)<=tick;
  const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick&&!freeBackupReady;
  async function startDownload(e,verifiedToken=null){
@@ -274,7 +274,7 @@ function App(){
       </div>
       {more&&<div className="advanced" id="download-options">
        {mode!=='Audio only'&&<label>Quality<select value={quality} onChange={e=>{setQuality(e.target.value);setJob(null)}}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select></label>}
-       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>
+       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>{mode==='Audio only'&&<p className="audio-format-help">MP3, M4A and WAV are supported through available audio sources. Original audio needs direct source access.</p>}
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
@@ -327,7 +327,7 @@ function App(){
     </section>
     </section>}
   </main>
-  <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
+  <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav12</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
   {humanCheckOpen&&humanStatus.enabled&&<HumanCheck siteKey={humanStatus.siteKey} onVerified={token=>startDownload(null,token)} onClose={()=>setHumanCheckOpen(false)}/>}
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
   {toast&&<div className="toast" role="status"><Icon name="check" size={18}/>{toast}</div>}
