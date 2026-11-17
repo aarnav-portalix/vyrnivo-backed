@@ -44,8 +44,8 @@ try{
   await page.getByRole('textbox',{name:'Video URL'}).fill('https://www.youtube.com/watch?v=jNQXAC9IVRw');
   await page.getByRole('button',{name:'Audio',exact:true}).click();
   await page.locator('button.options-btn').click();
-  await page.locator('select').last().selectOption({label:'M4A'});
-  assert.match(await page.locator('.options-btn').innerText(),/M4A/);
+  await page.getByLabel('File type').selectOption({label:'M4A'});
+  assert.match(await page.locator('.options-btn').innerText(),/M4A/);\n  assert.equal(await page.getByLabel('Audio quality').inputValue(),'320 kbps');\n  await page.getByLabel('Audio quality').selectOption({label:'120 kbps'});\n  assert.match(await page.locator('.options-btn').innerText(),/120 kbps/);
   await page.screenshot({path:'responsive-artifacts/'+device+'-download.png',fullPage:true,animations:'disabled'});
   await page.locator('.tabs .tab').filter({hasText:'Discover'}).click();
   await page.locator('.discover-filters button').filter({hasText:'Shorts'}).click();
