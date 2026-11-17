@@ -117,7 +117,7 @@ export async function createConverter({enabled=false,now=Date.now,fetchImpl=fetc
   const estimate=j.state==='processing'&&Number.isFinite(j.estimatedTotalSeconds)
     ?Math.max(0,Math.ceil(j.estimatedTotalSeconds-elapsedSeconds)):null;
   return {id:j.id,engine:'converter',state:j.state,createdAt:j.createdAt,elapsedSeconds,
-   stage:j.stage||null,progressPercent:j.progressPercent??null,estimatedSecondsRemaining:estimate,
+   stage:j.stage||null,progressPercent:j.progressPercent??null,estimatedTotalSeconds:j.estimatedTotalSeconds||null,estimatedSecondsRemaining:estimate,
    estimateIsApproximate:true,error:j.error||null,expiresAt:j.expiresAt||null,name:j.name||null,
    bytes:j.bytes||0,sourceMetadata:j.sourceMetadata||null,
    downloadUrl:j.state==='ready'&&now()<j.expiresAt?'/api/converter/'+j.id+'/file':null};
