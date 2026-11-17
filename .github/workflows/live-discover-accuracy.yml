@@ -1,0 +1,21 @@
+name: Verify live Discover source accuracy
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-discover-accuracy.mjs
+      - .github/workflows/live-discover-accuracy.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check public deployment search accuracy and source links
+        run: node scripts/live-discover-accuracy.mjs
