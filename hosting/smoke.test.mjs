@@ -41,6 +41,21 @@ test('single-host website and source-only downloads API work without revealing b
     assert.equal(r.status,200);
     const status=await r.json();
     assert.equal(status.enabled,true);
+    // Private conversion API is unavailable without the server-side bearer token.
+    r=await fetch(base+'/api/private/status');
+    assert.equal(r.status,401);
+    r=await fetch(base+'/api/private/status',{headers:{Authorization:'Bearer incorrect'}});
+    assert.equal(r.status,401);
+    r=await fetch(base+'/api/private/status',{headers:{Authorization:'Bearer private-server-token'}});
+    assert.equal(r.status,200);
+    assert.deepEqual((await r.json()).formats,['MP4','MP3']);
+    r=await fetch(base+'/api/private/conversions',{
+      method:'POST',
+      headers:{Authorization:'Bearer private-server-token','Content-Type':'application/json'},
+      body:JSON.stringify({url:'https://example.org/private.mp4',output:'MP4'})
+    });
+    assert.equal(r.status,400,'The private API must still reject unauthorized media source hosts.');
+
     // The public counter uses real same-origin browser heartbeats.
     r=await fetch(base+'/api/presence/status');
     assert.equal(r.status,200);
