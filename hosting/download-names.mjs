@@ -70,7 +70,7 @@ export function titleFromContentDisposition(value){
  const raw=String(value||'');
  const encoded=raw.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1];
  if(encoded){
-  try{return safeMediaTitle(decodeURIComponent(encoded))}catch{}
+  try{return safeMediaTitle(decodeURIComponent(encoded).replace(/\.[a-z0-9]{2,5}$/i,''))}catch{}
  }
  const quoted=raw.match(/filename\s*=\s*"([^"]+)"/i)?.[1];
  const plain=raw.match(/filename\s*=\s*([^;]+)/i)?.[1];
