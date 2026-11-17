@@ -82,7 +82,7 @@ export async function downloadViaOwnedEngine(input,dir,{
   method:'POST',
   headers:{'Content-Type':'application/json'},
   body:JSON.stringify({
-   url:input.url,mode:input.mode,quality:input.quality,container:input.container
+   url:input.url,mode:input.mode,quality:input.quality,container:input.container,...(input.mode==='Audio only'?{audioBitrate:input.audioBitrate}:{})
   })
  }));
  if(typeof started.id!=='string'||!JOB_ID.test(started.id)){
