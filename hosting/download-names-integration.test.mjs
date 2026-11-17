@@ -49,7 +49,7 @@ test('local extractor title drives actual file name while file remains in safe t
   const job=await submit(manager,sourceInput);
   assert.equal(job.name,'media.mp4','Storage and owned worker protocol must remain unchanged');
   assert.equal(job.title,'Epic Roblox Montage 2026!');
-  assert.equal(job.downloadName,'vyrnivo-Epic Roblox Montage 2026!-1080p-MP4.mp4');
+  assert.equal(job.downloadName,'vyrnivo-Epic Roblox Montage 2026! (1080p).mp4');
   const output=new PassThrough();
   let status,headers;
   output.writeHead=(code,h)=>{status=code;headers=h};
@@ -83,7 +83,7 @@ test('indexed Discover title becomes filename for a backup MP3 even without sour
    suggestedTitle:'My saved Short! 🎧'});
   assert.equal(invoked,1);
   assert.equal(job.name,'media.mp3');
-  assert.equal(job.downloadName,'vyrnivo-My saved Short! 🎧-Audio-MP3.mp3');
+  assert.equal(job.downloadName,'vyrnivo-My saved Short! 🎧 (Audio).mp3');
  }finally{manager.close()}
 });
 
@@ -102,7 +102,7 @@ test('content disposition media metadata wins for backup and malformed hinted ti
  });
  try{
   const job=await submit(manager,{...sourceInput,mode:'Audio only',quality:'Best available',container:'MP3'});
-  assert.equal(job.downloadName,'vyrnivo-Provider Video Name-Audio-MP3.mp3');
+  assert.equal(job.downloadName,'vyrnivo-Provider Video Name (Audio).mp3');
   const invalid=testResponse();
   const req=Readable.from([Buffer.from(JSON.stringify({...sourceInput,suggestedTitle:5}))]);req.method='POST';
   await manager.handle(req,invalid.res,'/api/downloads');
