@@ -10,6 +10,7 @@ const resultTree={contents:[
  {videoRenderer:{videoId,title:{runs:[{text:'Original video'}]},ownerText:{runs:[{text:'Test uploader'}]}}},
  {channelRenderer:{channelId,title:{simpleText:'Test channel'},subscriberCountText:{simpleText:'12 subscribers'}}},
  {playlistRenderer:{playlistId,title:{simpleText:'Test playlist'}}},
+ {lockupViewModel:{contentId:'PL'+'C'.repeat(20),contentType:'LOCKUP_CONTENT_TYPE_PLAYLIST',metadata:{lockupMetadataViewModel:{title:{content:'New-format playlist'}}}}},
  {shortsLockupViewModel:{contentId:shortId,overlayMetadata:{primaryText:{content:'Test Short'}}}},
  {reelItemRenderer:{videoId:'YE7VzlLtp-4',headline:{simpleText:'Reel item Short'}}}
 ]};
@@ -18,7 +19,7 @@ test('public YouTube search parses verified navigation IDs, including Shorts, ch
  const data=extractYouTubeSearchData(html);
  assert.ok(data);
  const items=parseYouTubeItems(data,'all');
- assert.equal(items.length,5);
+ assert.equal(items.length,6);
  const video=items.find(x=>x.kind==='video');
  const short=items.find(x=>x.kind==='short');
  const channel=items.find(x=>x.kind==='channel');
@@ -30,7 +31,7 @@ test('public YouTube search parses verified navigation IDs, including Shorts, ch
  assert.ok(!parseYouTubeItems(data,'channels').some(x=>x.kind==='video'));
  assert.ok(parseYouTubeItems(data,'shorts').every(x=>x.kind==='short'));
  assert.ok(parseYouTubeItems(data,'videos').every(x=>x.kind==='video'));
- assert.equal(parseYouTubeItems(data,'playlists').length,1);
+ assert.equal(parseYouTubeItems(data,'playlists').length,2);
 });
 test('search respects YouTube-native source filters and never fabricates results',async()=>{
  for(const kind of Object.keys(YOUTUBE_TYPES)){
