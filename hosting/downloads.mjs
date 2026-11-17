@@ -29,7 +29,7 @@ export function validate(input){
   if(['WAV','Original audio'].includes(input.container)&&audioBitrate!=='Source')throw Error('WAV and original audio use their native quality; choose Source.');
  }else if(input.audioBitrate!==undefined)throw Error('Audio quality can only be selected for audio files.');
  const containers=input.mode==='Audio only'?['Original audio','MP3','M4A','WAV']:['MP4','WebM','MKV'];if(!containers.includes(input.container))throw Error('Choose a valid file type.');
- return {...input,url:u.href,height:heights[input.quality],audioBitrate,suggestedTitle:safeMediaTitle(input.suggestedTitle)};
+ return {...input,url:u.href,height:heights[input.quality],audioBitrate:input.mode==='Audio only'?audioBitrate:undefined,suggestedTitle:safeMediaTitle(input.suggestedTitle)};
 }
 export function argumentsFor(input,dir){const x=validate(input);const filter=x.height?'[height<='+x.height+']':'';const ext=x.container.toLowerCase();
  // Prefer streams that fit the requested container without transcoding.
