@@ -61,7 +61,7 @@ test('YouTube unavailable search has an honest external URL and no fabricated vi
  assert.equal(result.status,200);
  const json=await result.json();
  assert.deepEqual(json.items,[]);
- assert.match(json.notice,/could not be reached/);
+ assert.match(json.notice,/could not be fetched/);
  assert.match(json.searchUrl,/youtube\.com/);
 });
 test('malformed YouTube initial data is rejected without eval',()=>{

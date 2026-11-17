@@ -34,10 +34,10 @@ test('Instagram creator search works keylessly on public RSS and labels links ho
  assert.equal(r.status,200);
  const data=await r.json();
  assert.equal(data.kind,'creators');
- assert.equal(data.items.length,2);
+ assert.equal(data.items.length,1);
  assert.equal(data.items[0].creator,'@sample_creator');
- assert.match(data.notice,/public search indexes/i);
- assert.ok(data.searchUrl.includes('google.com/search'));
+ assert.match(data.notice,/public index/i);
+ assert.ok(data.searchUrl.includes('instagram.com/explore/search/keyword'));
  assert.equal(calls,1);
 });
 test('Instagram creator API remains separate from Reels and rejects unsupported filters',async()=>{
@@ -52,7 +52,7 @@ test('index restrictions produce a truthful empty list rather than invented crea
  const r=await searchInstagramCreators(new Request('https://vyrnivo.test/api/search/instagram?q=nonexisting-creators-xx&kind=creators'),{fetchImpl:async()=>new Response('denied',{status:403})});
  const json=await r.json();
  assert.deepEqual(json.items,[]);
- assert.match(json.notice,/No indexed public creator profiles/);
+ assert.match(json.notice,/No trustworthy creator matches/);
 });
 
 test('a precise @handle is offered only as an explicitly unverified profile suggestion',async()=>{

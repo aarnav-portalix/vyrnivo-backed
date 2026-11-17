@@ -1,7 +1,7 @@
 name: Verify Vyrnivo premium UI across device widths
 on:
   push:
-    branches: [main, feat/quality-honest-eta-redesign-v3]
+    branches: [main, feat/discover-source-accurate-v3]
     paths:
       - src/App.jsx
       - src/style.css

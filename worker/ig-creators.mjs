@@ -1,3 +1,4 @@
+import {relevantIndexedItems,nativeInstagramSearchUrl} from './search-quality.mjs';
 /**
  * Public, keyless Instagram creator discovery from search-engine index results.
  * Does NOT access private Instagram APIs and never marks a profile as verified.
@@ -43,7 +44,8 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
  const u=new URL('https://www.bing.com/search');
  u.searchParams.set('q','site:instagram.com/ '+query);
  u.searchParams.set('format','rss');
- const fallback='https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/ '+query);
+ const indexedSearchUrl='https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/ '+query);
+ const fallback=nativeInstagramSearchUrl(query);
  const tasks=[
   fetchImpl(u.href,{redirect:'error',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(9000)})
    .then(async r=>r.ok?parseIndexedInstagramProfiles((await r.text()).slice(0,1_500_000)):[])
@@ -76,12 +78,13 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
  const handleQuery=query.replace(/^@/,'');
  const suggestion=/^[A-Za-z0-9._]{2,30}$/.test(handleQuery)?
    canonicalInstagramProfile('https://www.instagram.com/'+handleQuery+'/'):null;
- const suggestedProfile=suggestion&&!seen.has(suggestion.id)?
+ const matched=relevantIndexedItems(items,query,{max:24});
+ const suggestedProfile=suggestion&&!matched.some(item=>item.id===suggestion.id)?
    {...suggestion,title:'@'+suggestion.username,source:'Unverified handle suggestion',verified:false}:null;
- const data={items:items.slice(0,24),kind:'creators',query,searchUrl:fallback,suggestedProfile,
-  notice:items.length?
-   'Profiles found in public search indexes. Open Instagram to confirm the account; private or unindexed profiles may be missing.':
-   'No indexed public creator profiles were returned. Open the web search or try a precise @username. Results cannot be guaranteed without official access.'};
+ const data={items:matched,kind:'creators',query,searchUrl:fallback,indexedSearchUrl,suggestedProfile,
+  notice:matched.length?
+   'Matching public index profiles, not live Instagram account verification. Open Instagram to confirm the creator.':
+   'No trustworthy creator matches were returned by public indexes. Search on Instagram or try an exact @username.'};
  if(cache.size>120)cache.clear();cache.set(key,{data,at:now()});
  return Response.json(data,{headers:{'cache-control':'no-store'}});
 }
