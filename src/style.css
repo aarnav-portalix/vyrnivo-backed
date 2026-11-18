@@ -1246,3 +1246,28 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(prefers-reduced-motion:reduce){
  .content>.hero,.content>section{animation:none!important}
 }
+
+/* Phase 16: remove the visible rectangular compositing artifact around the wordmark.
+   The layered grid and duplicate gradient-clipped word create a hard-edged painted
+   surface. Keep the actual text and its entrance motion; no overlay rectangle. */
+.motion-hero,.content>.hero .motion-hero{
+ background:transparent!important;
+ box-shadow:none!important;
+ border:0!important;
+ isolation:auto;
+ contain:layout;
+ overflow:visible;
+}
+.motion-grid,.content>.hero .motion-grid{display:none!important}
+.motion-word,.content>.hero .motion-word{
+ background:none!important;
+ -webkit-background-clip:initial!important;
+ background-clip:initial!important;
+ filter:none!important;
+ text-shadow:0 5px 30px rgba(156,121,255,.16);
+}
+.motion-word::after,.content>.hero .motion-word::after{content:none!important;display:none!important}
+.motion-heading{background:transparent!important;box-shadow:none!important}
+@media(max-width:640px){
+ .content>.hero .motion-hero{overflow:visible}
+}
