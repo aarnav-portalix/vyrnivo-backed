@@ -1325,3 +1325,46 @@ input,textarea,[contenteditable="true"],.message,.message *,
 .download-result.ready .ready-heading svg{transition:transform 170ms ease}
 @media(hover:hover) and (pointer:fine){.download-result.ready .ready-actions .cta:hover svg{transform:translate3d(2px,0,0)}.download-result.ready .ready-actions .cta svg{transition:transform 170ms ease}}
 @media(prefers-reduced-motion:reduce){.download-result.ready{animation:none!important}.download-result.ready .ready-heading svg,.download-result.ready .ready-actions .cta svg{transition:none!important;transform:none!important}}
+
+/* Discover: genuinely compact mobile layout, preserving comfortable tap targets. */
+@media(max-width:640px){
+ .topbar{padding:12px 16px 5px;min-height:55px}
+ .topbar .logo{font-size:20px;gap:7px}
+ .topbar .logo-icon,.topbar .logo-icon img{width:32px;height:32px}
+ .content{padding:8px 14px 92px}
+ .hero{margin:8px auto 12px}
+ .hero h1{font-size:clamp(25px,7vw,34px);line-height:1.08;letter-spacing:-.045em}
+ .hero>p:last-child{font-size:12px;margin:6px 0 0;line-height:1.4}
+ .kinetic-visual{height:56px;width:min(210px,65vw);margin:0 auto 2px}
+ .kinetic-visual svg,.kinetic-visual img{max-height:100%;max-width:100%}
+ .discover-hub{padding:15px 13px;border-radius:19px}
+ .discover-intro{margin-bottom:10px}
+ .discover-intro strong{font-size:17px;line-height:1.25}
+ .discover-intro p{font-size:12px;line-height:1.4;margin:4px 0 0}
+ .search-mode-tabs{gap:7px;margin:0 0 10px}
+ .search-mode-tabs button{min-height:42px;padding:7px 9px;font-size:13px;border-radius:12px}
+ .discover-filters{display:flex;overflow-x:auto;scrollbar-width:none;gap:6px;margin:0 0 10px;padding:0 0 3px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+ .discover-filters::-webkit-scrollbar{display:none}
+ .discover-filters button{flex:0 0 auto;min-height:38px;padding:6px 12px;font-size:12px;border-radius:11px}
+ .search-panel{padding:8px 9px;gap:6px;border-radius:16px;box-shadow:none}
+ .search-input{gap:8px;padding:0 5px}
+ .search-input input{min-height:40px;font-size:16px}
+ .search-panel .cta{min-width:86px;min-height:42px;padding:8px 11px;font-size:13px;border-radius:11px}
+ .search-panel .cta svg{width:15px;height:15px}
+ .native-search-bar{margin-top:8px;gap:0}
+ .native-search-bar>span{display:none}
+ .native-search-bar>a{width:auto;min-height:34px;padding:5px 8px;border:0;background:transparent;box-shadow:none;font-size:11px}
+ .search-source-note{font-size:11px;line-height:1.4}
+ .result-heading{margin-top:14px}
+ .media-card{padding:10px}
+ .tabs{padding:4px;gap:4px;border-radius:15px}
+ .tabs .tab{min-height:52px;padding:6px 9px;border-radius:12px}
+}
+@media(max-width:360px){
+ .search-panel .cta{min-width:74px;padding:7px 8px}
+ .search-panel .cta svg{display:none}
+ .discover-hub{padding:12px 10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .discover-filters{scroll-behavior:auto}
+}
