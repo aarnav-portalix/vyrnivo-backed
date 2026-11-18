@@ -120,7 +120,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }catch(e){
   if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_RATE_LIMITED','SOURCE_ACCESS_DENIED','SOURCE_VERIFICATION_REQUIRED','SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
    try{await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});await backup();return}
-   catch(fallbackError){e=fallbackError}
+   catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,code:fallbackError?.code||'UNKNOWN'}));e=fallbackError}
   }
   if(e?.code?.startsWith('FREE_PROVIDER_')){
    j.failureCode=e.code;
