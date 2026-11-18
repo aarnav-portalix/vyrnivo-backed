@@ -95,7 +95,7 @@ function App(){
  const [selectedResult,setSelectedResult]=useState(null);
  const [mode,setMode]=useState(()=>saved('vyrnivo-mode','Video + audio'));
  const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
- const [container,setContainer]=useState('MP4');
+ const [container,setContainer]=useState(()=>saved('vyrnivo-mode','Video + audio')==='Audio only'?'MP3':'MP4');
  const [audioBitrate,setAudioBitrate]=useState('320 kbps');
  const [more,setMore]=useState(false);
  const [status,setStatus]=useState(null);
@@ -243,7 +243,7 @@ function App(){
   setHumanCheckOpen(false);
   setBusy(true);setFormError('');setJob(null);
   try{
-   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(mode==='Audio only'?{audioBitrate:['WAV','Original audio'].includes(container)?'Source':audioBitrate}:{}),...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
+   const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container:mode==='Audio only'&&!['MP3','M4A','WAV','Original audio'].includes(container)?'MP3':mode!=='Audio only'&&!['MP4','WebM','MKV'].includes(container)?'MP4':container,...(mode==='Audio only'?{audioBitrate:['WAV','Original audio'].includes(container)?'Source':audioBitrate}:{}),...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
    setJob(data);
