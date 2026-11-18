@@ -907,3 +907,24 @@ h1,h2,h3,.kicker,.footer-brand{-webkit-user-select:none;user-select:none}
 @media(max-width:360px){.motion-baseline{font-size:6px;gap:6px}.motion-word{font-size:12vw}}
 @media(hover:none) and (pointer:coarse){.motion-word:after,.motion-rule i,.motion-spark{animation:none}.motion-word:after{opacity:.3;background-position:60% 0}}
 @media(prefers-reduced-motion:reduce){.motion-word,.motion-word:after,.motion-rule i,.motion-spark{animation:none!important;filter:none!important;transform:none!important}}
+
+/* Navigation, labels, menus and decorative interface chrome are not text selections.
+   Keep editable fields, legal copy, messages and useful results selectable. */
+nav,nav *,header,header *,footer,footer *,
+button,button *,[role="tab"],[role="tab"] *,
+[role="button"],[role="button"] *,
+label,.tab,.format-tab,.options-btn,.flow-steps,.flow-steps *,
+.kicker,.motion-hero,.motion-hero *,h1,h2,h3,
+select,option,.source-switch,.source-switch *,
+.search-filters,.search-filters *,.native-search-bar>a,
+.mini-primary,.cta,.round-btn,.footer-brand{
+ -webkit-user-select:none;user-select:none;
+ -webkit-touch-callout:none;
+}
+input,textarea,[contenteditable="true"],.message,.message *,
+.file-label,.file-label *,.processing-copy,.processing-copy *,
+.faq-item p,.faq-item p *,article p,article p *,
+.legal-center p,.legal-center p *, .download-result p,.download-result p *{
+ -webkit-user-select:text;user-select:text;
+ -webkit-touch-callout:default;
+}
