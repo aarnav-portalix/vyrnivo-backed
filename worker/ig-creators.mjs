@@ -73,11 +73,6 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
   if(!seen.has(item.id)){seen.add(item.id);items.push(item)}
   if(items.length>=24)break;
  }
- // A handle-like query can be offered as a navigation suggestion, never as an
- // indexed or verified result. The profile may not exist or may be private.
- const handleQuery=query.replace(/^@/,'');
- const suggestion=/^[A-Za-z0-9._]{2,30}$/.test(handleQuery)?
-   canonicalInstagramProfile('https://www.instagram.com/'+handleQuery+'/'):null;
  // Search for related creators, not an exact-handle lookup. Favor matches in public titles and handles.\n const matched=relevantIndexedItems(items,query,{max:24});
  const data={items:matched,kind:'creators',query,searchUrl:fallback,indexedSearchUrl,
   notice:matched.length?
