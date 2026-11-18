@@ -64,12 +64,10 @@ function friendlyError(message,source){
  return m||('Could not download this '+source+' video.');
 }
 function AuroraVisual(){return <div className="kinetic-visual" aria-hidden="true"><div className="kinetic-field">
- <span className="kinetic-corner kinetic-corner-a"/><span className="kinetic-corner kinetic-corner-b"/>
- <div className="kinetic-icon"><svg viewBox="0 0 88 88" fill="none" aria-hidden="true">
- <path className="kinetic-arrow" d="M44 15V56M29 42L44 57L59 42" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
- <path className="kinetic-base" d="M24 70H64" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></div>
- <span className="kinetic-line kinetic-line-left"/><span className="kinetic-line kinetic-line-right"/>
- <div className="kinetic-meter"><span/><span/><span/><span/><span/><span/><span/><span/><span/></div></div></div>}
+ <div className="kinetic-topline"><span className="kinetic-live-dot"/>VYRNIVO <span className="kinetic-topline-right">TRANSFER / 01</span></div>
+ <div className="kinetic-track"><span className="kinetic-rail"/><span className="kinetic-packet"><Icon name="download" size={23}/></span><span className="kinetic-destination"><Icon name="check" size={20}/></span></div>
+ <div className="kinetic-footer"><span>LINK RECEIVED</span><div className="kinetic-progress"><span/></div><span>FILE READY</span></div>
+ </div></div>}
 function Preview({item,onClose}){
  useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
  useEffect(()=>{
