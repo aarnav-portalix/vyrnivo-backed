@@ -29,6 +29,7 @@ export function createTransferReporter({now=Date.now,onProgress=()=>{},totalByte
    progressPercent:percent,
    progressSource:validTotal?'measured-transfer':null,
    progressUpdatedAt:t,
+   speedBytesPerSecond:elapsedMs>=1000&&smoothedSpeed>0?Math.round(smoothedSpeed):null,
    transferredBytes:received,
    totalBytes:validTotal,
    estimatedSecondsRemaining:remaining
