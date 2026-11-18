@@ -39,15 +39,19 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  const extension=payload.outputFormat;
  const destination=join(dir,'media.'+extension);
  let response;
- const signal=AbortSignal.timeout(105000);
+ // Fail fast if the provider cannot begin a response. A responding transfer gets its own deadline.
+ const responseController=new AbortController();
+ const responseTimer=setTimeout(()=>responseController.abort(),35000);
+ responseTimer.unref?.();
  try{
   response=await fetchImpl(API,{
    method:'POST',headers:{'content-type':'application/json',accept:'video/*, audio/*, application/octet-stream'},
-   body:JSON.stringify(payload),redirect:'error',signal
+   body:JSON.stringify(payload),redirect:'error',signal:responseController.signal
   });
- }catch{
+ }catch(error){
+  if(responseController.signal.aborted)throw new FreeProviderError('The backup service did not respond within 35 seconds. Try again later.','FREE_PROVIDER_TIMEOUT',0);
   throw new FreeProviderError('The backup service could not be reached. Try again later.','FREE_PROVIDER_UNAVAILABLE',0);
- }
+ }finally{clearTimeout(responseTimer)}
  if(response.status===429){
   const header=Number(response.headers.get('retry-after'));
   const retryAfterMs=Number.isFinite(header)&&header>0?Math.min(header*1000,21600000):300000;
@@ -78,7 +82,7 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
   else callback(null,chunk);
  }});
  try{
-  await pipeline(Readable.fromWeb(response.body),limiter,createWriteStream(destination,{mode:0o600}),{signal});
+  await pipeline(Readable.fromWeb(response.body),limiter,createWriteStream(destination,{mode:0o600}),{signal:AbortSignal.timeout(120000)});
   if(bytes<128)throw new FreeProviderError('The free backup returned an empty media file.','FREE_PROVIDER_INVALID_MEDIA',120000);
  }catch(error){
   await rm(destination,{force:true});
