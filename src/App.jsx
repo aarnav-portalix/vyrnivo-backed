@@ -63,11 +63,11 @@ function friendlyError(message,source){
  if(m.length>150)return 'Could not prepare this video. Try a different link.';
  return m||('Could not download this '+source+' video.');
 }
-function AuroraVisual(){return <div className="kinetic-visual" aria-hidden="true"><div className="kinetic-field">
- <div className="kinetic-topline"><span className="kinetic-live-dot"/>VYRNIVO <span className="kinetic-topline-right">TRANSFER / 01</span></div>
- <div className="kinetic-track"><span className="kinetic-rail"/><span className="kinetic-packet"><Icon name="download" size={23}/></span><span className="kinetic-destination"><Icon name="check" size={20}/></span></div>
- <div className="kinetic-footer"><span>LINK RECEIVED</span><div className="kinetic-progress"><span/></div><span>FILE READY</span></div>
- </div></div>}
+function AuroraVisual(){return <div className="motion-hero" aria-hidden="true">
+ <div className="motion-grid"/>
+ <div className="motion-heading"><span className="motion-word" data-text="VYRNIVO">VYRNIVO</span><span className="motion-spark"/></div>
+ <div className="motion-baseline"><span className="motion-index">01 / MEDIA, UNCOMPLICATED</span><span className="motion-rule"><i/></span><span className="motion-end">READY WHEN YOU ARE</span></div>
+ </div>}
 function Preview({item,onClose}){
  useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
  useEffect(()=>{
