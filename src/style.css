@@ -955,3 +955,48 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(max-width:340px){.download-result.pending>.transfer-stats{grid-template-columns:1fr}.download-result.pending>.transfer-stats>span:last-child{grid-column:auto}}
 
 .quality-help{display:block;margin-top:7px;font-size:11px;line-height:1.5;color:#ada6c2}.quality-delivered{font-size:12px;color:#c8baf0;margin:7px 0 10px}
+
+/* Phase 4: compact, stable tablet/mobile layout without changing animation timings. */
+@media(min-width:521px) and (max-width:1024px){
+ .topbar{padding-inline:clamp(18px,3vw,28px);gap:12px}
+ .content{width:min(850px,100%);padding-inline:clamp(18px,3vw,28px)}
+ .panel{padding:clamp(19px,2.5vw,25px)}
+ .tabs{min-width:0;gap:3px;padding:5px}
+ .tab{padding:10px clamp(9px,1.6vw,15px);gap:6px}
+ .footer{padding-inline:24px}
+ .download-result.pending>.transfer-stats{gap:9px}
+}
+@media(max-width:520px){
+ .app-shell{width:100%;min-width:0}
+ .topbar{width:100%;padding:13px 14px 8px}
+ .content{width:100%;min-width:0;padding:4px 13px calc(112px + env(safe-area-inset-bottom))}
+ .hero{margin:11px auto 19px}
+ .panel,.search-panel{width:100%;min-width:0;border-radius:18px}
+ .panel{padding:15px}
+ .url-row{min-width:0}
+ .url-row input{min-width:0;font-size:16px}
+ .format-tabs{gap:5px;padding:4px;border-radius:13px}
+ .format-tab{min-width:0;padding-inline:5px;white-space:normal;line-height:1.25}
+ .options-btn,.cta{min-width:0}
+ .download-result{min-width:0;overflow-wrap:break-word;border-radius:14px}
+ .download-result.pending{grid-template-columns:26px minmax(0,1fr);gap:10px}
+ .download-result.pending>.transfer-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .download-result.pending>.transfer-stats>span{min-width:0;padding:10px}
+ .download-result.pending>.transfer-stats b{font-size:clamp(12px,3.4vw,14px);line-height:1.35}
+ .download-result.pending>.transfer-stats>span:last-child{grid-column:1/-1}
+ .tabs{left:10px;right:10px;width:calc(100% - 20px);padding:5px;border-radius:17px}
+ .tabs .tab{min-width:0;flex:1;padding:9px 4px;font-size:11px;gap:5px}
+ .footer{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+}
+@media(max-width:360px){
+ .content{padding-inline:9px}
+ .panel{padding:12px}
+ .tabs .tab{font-size:10px;gap:3px}
+ .download-result.pending>.transfer-stats{grid-template-columns:1fr}
+ .download-result.pending>.transfer-stats>span:last-child{grid-column:auto}
+}
+@media(hover:none) and (pointer:coarse){
+ .ambient span{filter:blur(80px);opacity:.12}
+ .panel,.search-panel{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+ .tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
