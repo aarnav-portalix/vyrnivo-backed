@@ -109,6 +109,7 @@ function App(){
  const [indexedSearchUrl,setIndexedSearchUrl]=useState('');
  const [suggestedProfile,setSuggestedProfile]=useState(null);
  const [job,setJob]=useState(null);
+ const [queueJobs,setQueueJobs]=useState([]);
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
  const [query,setQuery]=useState('');
@@ -191,14 +192,14 @@ function App(){
  useEffect(()=>{try{localStorage.removeItem('dw3lastJob')}catch{}},[]);
  useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t)},[]);
  useEffect(()=>{
-  if(!job?.id||job.state!=='processing')return;
+  if(!job?.id||!['processing','queued'].includes(job.state))return;
   let alive=true;let requestInFlight=false;
   const poll=async()=>{
    if(requestInFlight||!alive)return;requestInFlight=true;
    try{
     const r=await fetch((job.engine==='converter'?'/api/converter/':'/api/downloads/')+job.id);
     const data=await r.json();
-    if(alive){if(r.ok){setJob(data);if(data.state==='failed')refreshStatus()}else setJob(p=>({...p,state:'failed',error:data.error||'Download no longer available.'}))}
+    if(alive){if(r.ok){setJob(data);setQueueJobs(items=>items.map(item=>item.id===data.id?data:item));if(data.state==='failed')refreshStatus()}else setJob(p=>({...p,state:'failed',error:data.error||'Download no longer available.'}))}
    }catch{if(alive)setFormError('Connection interrupted. You can try again.')}
    finally{requestInFlight=false}
   };
@@ -206,6 +207,10 @@ function App(){
   return()=>{alive=false;clearInterval(interval)}
  },[job?.id,job?.state,job?.engine]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
+ useEffect(()=>{if(!queueJobs.some(item=>['queued','processing'].includes(item.state)))return;
+  let live=true;const poll=async()=>{const pending=queueJobs.filter(item=>['queued','processing'].includes(item.state));await Promise.all(pending.map(async item=>{try{const r=await fetch('/api/downloads/'+item.id);if(!r.ok)return;const data=await r.json();if(live){setQueueJobs(items=>items.map(x=>x.id===data.id?data:x));setJob(current=>current?.id===data.id?data:current)}}catch{}}))};
+  const timer=setInterval(poll,3000);return()=>{live=false;clearInterval(timer)};
+ },[queueJobs.map(item=>item.id+':'+item.state).join('|')]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
  const resetSearchView=()=>{searchAbort.current?.abort();setSearching(false);setResults([]);setSearched('');setSearchError('');setSearchNote('');setSearchUrl('');setIndexedSearchUrl('');setSuggestedProfile(null)};
@@ -246,7 +251,7 @@ function App(){
    const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container,...(mode==='Audio only'?{audioBitrate:['WAV','Original audio'].includes(container)?'Source':audioBitrate}:{}),...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
-   setJob(data);
+   setJob(data);setQueueJobs(items=>[data,...items.filter(item=>item.id!==data.id)].slice(0,8));
    if(data.state==='ready')showToast('Your file is ready.')
   }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
   finally{setBusy(false)}
@@ -301,6 +306,8 @@ function App(){
   ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining)):null;
  const measuredProgress=Number.isFinite(job?.progressPercent);
  const jobView=<>
+     {queueJobs.length>0&&<div className="download-queue"><div className="queue-title"><strong>Download queue</strong><span>{queueJobs.length} recent jobs</span></div><div className="queue-items">{queueJobs.map(item=><button type="button" key={item.id} className={'queue-item '+(job?.id===item.id?'selected':'')} onClick={()=>setJob(item)}><span className="queue-item-name">{item.title||item.downloadName||'Media download'}</span><span className="queue-item-state">{item.state==='queued'?'Queued #'+(item.queuePosition||'…'):item.state==='processing'?'Processing':item.state==='ready'?'Ready':item.state==='failed'?'Failed':'Expired'}</span></button>)}</div></div>}
+     {job?.state==='queued'&&<div className="download-result pending" role="status"><div className="processing-copy"><strong>Added to download queue</strong><p>Position {job.queuePosition||'pending'} · Your download starts automatically when the current job finishes.</p></div></div>}
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite">
        <div className="loading-spinner" aria-hidden="true"/>
        <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p>
