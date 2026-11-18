@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createTransferReporter,parseExtractorProgress} from './progress-metrics.mjs';
+import {createTransferReporter,parseExtractorProgress,parseExtractorTelemetry} from './progress-metrics.mjs';
 
 test('yt-dlp progress parser reads actual emitted percentage (not a mis-escaped expression)',()=>{
  assert.equal(parseExtractorProgress('download: 17.5%\n'),17.5);
@@ -51,4 +51,16 @@ test('transfer percentages remain bounded even with inconsistent declared length
  report(2048);
  assert.ok(samples.at(-1).progressPercent<=99.9);
  assert.equal(samples.at(-1).estimatedSecondsRemaining,null);
+});
+
+test('extractor speed dashboard uses only numeric source telemetry',()=>{
+ const measured=parseExtractorTelemetry('download: 42.5%|00:09|524288|1048576|2097152');
+ assert.equal(measured.percent,42.5);
+ assert.equal(measured.speedBytesPerSecond,524288);
+ assert.equal(measured.transferredBytes,1048576);
+ assert.equal(measured.totalBytes,2097152);
+ const unknown=parseExtractorTelemetry('download: 42.5%|NA|NA|NA|NA');
+ assert.equal(unknown.speedBytesPerSecond,null);
+ assert.equal(unknown.totalBytes,null);
+ assert.equal(unknown.etaSeconds,null);
 });

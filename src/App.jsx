@@ -307,6 +307,11 @@ function App(){
         <div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span>
         <span>{Number.isFinite(remainingEstimate)?<>Estimated <b>{formatDuration(remainingEstimate)}</b> remaining</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Measuring progress…'}</span></div>
        </div>
+       <div className="transfer-stats" aria-label="Live download measurements">
+        <span><small>SPEED</small><b>{Number.isFinite(job.speedBytesPerSecond)&&job.speedBytesPerSecond>0?(job.speedBytesPerSecond/1048576).toFixed(2)+' MB/s':'Measuring'}</b></span>
+        <span><small>TRANSFERRED</small><b>{Number.isFinite(job.transferredBytes)?(job.transferredBytes/1048576).toFixed(1)+' MB':'—'}{Number.isFinite(job.totalBytes)&&job.totalBytes>0?' / '+(job.totalBytes/1048576).toFixed(1)+' MB':''}</b></span>
+        <span><small>PROGRESS</small><b>{measuredProgress?Math.round(job.progressPercent)+'%':'Unknown'}</b></span>
+       </div>
        <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
        <p className="processing-note">{Number.isFinite(remainingEstimate)?'Based on the latest transfer report. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
