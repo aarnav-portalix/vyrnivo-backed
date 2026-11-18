@@ -864,3 +864,24 @@ h1,h2,h3,.kicker,.footer-brand{-webkit-user-select:none;user-select:none}
 @media(max-width:640px){.kinetic-visual{height:116px;width:min(300px,94vw);margin:-8px auto 2px}.kinetic-field{height:111px;width:250px}.kinetic-icon{width:72px;height:72px;border-radius:20px}.kinetic-icon:before{inset:-5px;border-radius:24px}.kinetic-icon svg{width:58px;height:58px}.kinetic-line{width:33px}.kinetic-line-left{right:calc(50% + 48px)}.kinetic-line-right{left:calc(50% + 48px)}.kinetic-meter{bottom:1px;gap:3px}.kinetic-meter span{width:10px}.panel,.search-panel{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.hero{animation:none}}
 @media(hover:none) and (pointer:coarse){.kinetic-arrow,.kinetic-meter span{animation:none}}
 @media(prefers-reduced-motion:reduce){.kinetic-arrow,.kinetic-meter span{animation:none!important}}
+
+/* Vyrnivo motion identity: restrained, purposeful transfer, not decorative orbits. */
+.kinetic-visual{width:min(520px,94vw);height:148px;margin:2px auto 14px;contain:layout paint;pointer-events:none}
+.kinetic-field{width:100%;height:134px;padding:16px 23px 13px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(135deg,#ffffff08,#ffffff02 60%),#100f1a;border:1px solid #ffffff1d;border-radius:18px;box-shadow:0 15px 48px #00000030,inset 0 1px #ffffff10;overflow:hidden}
+.kinetic-topline,.kinetic-footer{display:flex;align-items:center;gap:10px;color:#b5aec8;font-size:9px;letter-spacing:.16em;font-weight:750}
+.kinetic-live-dot{width:6px;height:6px;background:#b9ffdf;border-radius:50%;box-shadow:0 0 9px #a1ffd555}
+.kinetic-topline-right{margin-left:auto;color:#817c91;font-variant-numeric:tabular-nums}
+.kinetic-track{height:49px;position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 3px}
+.kinetic-rail{position:absolute;left:24px;right:24px;top:50%;height:1px;background:linear-gradient(90deg,#e4d8ff55,#8fffd888);transform:translateY(-50%)}
+.kinetic-packet,.kinetic-destination{position:relative;z-index:1;display:grid;place-items:center;width:42px;height:42px;border:1px solid #d4c4ff65;border-radius:12px;background:#242033;color:#eee6ff}
+.kinetic-packet{animation:vyrnivo-transfer 4.8s cubic-bezier(.65,0,.35,1) infinite;will-change:transform,opacity}
+.kinetic-destination{border-color:#a0e8c27d;background:#1a2a29;color:#a8ffdb;animation:vyrnivo-arrival 4.8s ease-in-out infinite}
+.kinetic-footer{justify-content:space-between;color:#938ba7;font-size:8px;letter-spacing:.11em}
+.kinetic-progress{height:2px;flex:1;max-width:180px;overflow:hidden;background:#ffffff1c;border-radius:2px}
+.kinetic-progress span{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c9b3ff,#a8ffda);transform-origin:left;animation:vyrnivo-fill 4.8s ease-in-out infinite}
+@keyframes vyrnivo-transfer{0%,8%{transform:translateX(0);opacity:1}63%,78%{transform:translateX(calc(min(520px,94vw) - 102px));opacity:1}84%,100%{transform:translateX(calc(min(520px,94vw) - 102px));opacity:0}}
+@keyframes vyrnivo-arrival{0%,60%,100%{box-shadow:none}68%,82%{box-shadow:0 0 0 5px #a8ffda12,0 0 20px #a8ffda24}}
+@keyframes vyrnivo-fill{0%,9%{transform:scaleX(0)}68%,83%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@media(max-width:640px){.kinetic-visual{height:122px;width:min(370px,92vw);margin:0 auto 10px}.kinetic-field{height:115px;padding:13px 15px 10px;border-radius:14px}.kinetic-track{height:40px}.kinetic-packet,.kinetic-destination{width:35px;height:35px;border-radius:10px}.kinetic-packet svg,.kinetic-destination svg{width:19px;height:19px}.kinetic-topline,.kinetic-footer{font-size:7px}.kinetic-progress{max-width:90px}}
+@media(hover:none) and (pointer:coarse){.kinetic-packet,.kinetic-destination,.kinetic-progress span{animation:none}.kinetic-progress span{transform:scaleX(.7)}}
+@media(prefers-reduced-motion:reduce){.kinetic-packet,.kinetic-destination,.kinetic-progress span{animation:none!important}.kinetic-progress span{transform:scaleX(.7)}}
