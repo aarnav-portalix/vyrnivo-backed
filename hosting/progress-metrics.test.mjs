@@ -64,3 +64,15 @@ test('extractor speed dashboard uses only numeric source telemetry',()=>{
  assert.equal(unknown.totalBytes,null);
  assert.equal(unknown.etaSeconds,null);
 });
+
+test('numeric extractor telemetry is parsed instead of silently showing Measuring',()=>{
+ const report=parseExtractorTelemetry('download: 12.5%|00:15|262144|131072|1048576');
+ assert.deepEqual([report.speedBytesPerSecond,report.transferredBytes,report.totalBytes],[262144,131072,1048576]);
+});
+test('missing extractor metrics are unknown, never coerced to zero',()=>{
+ const report=parseExtractorTelemetry('download: 0.0%|NA|NA|NA|NA');
+ assert.equal(report.percent,0);
+ assert.equal(report.speedBytesPerSecond,null);
+ assert.equal(report.transferredBytes,null);
+ assert.equal(report.totalBytes,null);
+});
