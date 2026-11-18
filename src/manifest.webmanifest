@@ -1,0 +1,18 @@
+{
+  "name": "Vyrnivo — Keep the moment",
+  "short_name": "Vyrnivo",
+  "description": "Choose and prepare media in your browser.",
+  "start_url": "/#download",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090913",
+  "theme_color": "#19132d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
