@@ -285,3 +285,25 @@ test('audio bitrate and container choices are validated',()=>{
  }
  assert.throws(()=>validate({...input,mode:'Audio only',container:'MP4',audioBitrate:'320 kbps'}));
 });
+
+test('download status routes reject malformed IDs and unexpected paths',async()=>{
+ const manager=await createDownloads({enabled:true});
+ try{
+  for(const path of ['/api/downloads/not-a-uuid','/api/downloads/../file','/api/downloads/00000000-0000-0000-0000-000000000000/extra','/api/downloads/00000000-0000-0000-0000-000000000000/file/extra']){
+   let payload;
+   const res={writeHead(status){this.status=status},end(raw){payload=JSON.parse(raw)}};
+   await manager.handle({method:'GET'},res,path);
+   assert.equal(res.status,404,path);
+   assert.ok(payload.error);
+  }
+ }finally{manager.close()}
+});
+test('source validation rejects invalid containers, audio settings and URLs',()=>{
+ for(const bad of [
+  {...input,mode:'Audio only',container:'MP4',audioBitrate:'320 kbps'},
+  {...input,mode:'Video + audio',container:'MP3'},
+  {...input,quality:'8K'},
+  {...input,url:'https://example.com/watch?v=BaW_jenozKc'},
+  {...input,url:'http://www.youtube.com/watch?v=BaW_jenozKc'},
+ ])assert.throws(()=>validate(bad));
+});
