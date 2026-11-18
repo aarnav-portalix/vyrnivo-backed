@@ -1,4 +1,3 @@
-import {instagram} from './instagram.mjs';
 import {indexedInstagram} from './ig-index.mjs';
 import {searx} from './searx.mjs';
 import {searchInstagramCreators} from './ig-creators.mjs';
@@ -8,13 +7,13 @@ const cache=new Map();
 const canonical=item=>{
  try{
   const u=new URL(item?.url);
-  const code=u.pathname.match(/^\/reel\/([a-zA-Z0-9_-]{6,30})\/?$/)?.[1];
+  const code=u.pathname.match(/^\/(?:reel|reels)\/([a-zA-Z0-9_-]{6,30})\/?$/)?.[1];
   if(u.protocol!=='https:'||!['instagram.com','www.instagram.com'].includes(u.hostname)||!code)return null;
   return {id:code,kind:'instagram',title:String(item.title||'Public Instagram Reel').slice(0,180),creator:String(item.creator||'Instagram').slice(0,80),description:String(item.description||'').slice(0,350),source:item.source||'Public index',url:'https://www.instagram.com/reel/'+code+'/'};
  }catch{return null}
 };
 
-export async function findReels(request,{searchIndex=indexedInstagram,searchPublic=instagram,searchSearx=searx,searchCreators=searchInstagramCreators,base,now=Date.now}={}){
+export async function findReels(request,{searchIndex=indexedInstagram,searchSearx=searx,searchCreators=searchInstagramCreators,base,now=Date.now}={}){
  const url=new URL(request.url);
  const kind=url.searchParams.get('kind')||'reels';
  if(!['reels','creators'].includes(kind))return Response.json({error:'Unsupported Instagram search type.'},{status:400});
@@ -28,7 +27,9 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchPubl
  const key=String(base||'')+'|'+query.toLocaleLowerCase();
  const hit=cache.get(key);
  if(hit&&now()-hit.time<(hit.data.items.length?120000:20000))return Response.json(hit.data);
-  const tasks=[searchIndex(request),searchPublic(request)];
+  // Public Instagram topic pages are slow, often blocked, and rarely return usable Reel cards.
+ // Prefer independent public search indexes rather than waiting for that endpoint.
+ const tasks=[searchIndex(request)];
  if(base)tasks.unshift(searchSearx(request,base));
  const results=await Promise.allSettled(tasks);
  const seen=new Set(),items=[];let topic=null,sourceURL=null;
