@@ -1205,3 +1205,44 @@ input,textarea,[contenteditable="true"],.message,.message *,
 .developer-section .developer-project-link:hover{transform:translateY(-1px);border-color:#e6cfff;background-color:#a17ad43b}
 .developer-section .developer-project-link:focus-visible{outline:2px solid #d8bbff;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.developer-section .developer-project-link{transition:none}.developer-section .developer-project-link:hover{transform:none}}
+
+/* Phase 15: clear brand/title hierarchy and lightweight page transitions. */
+@keyframes vyrnivo-page-enter{
+ from{opacity:0;transform:translate3d(0,10px,0)}
+ to{opacity:1;transform:translate3d(0,0,0)}
+}
+.content>.hero{animation:vyrnivo-page-enter 240ms cubic-bezier(.22,.75,.25,1) both}
+.content>section{animation:vyrnivo-page-enter 280ms cubic-bezier(.22,.75,.25,1) both}
+.content>.hero .motion-baseline,.content>.hero .flow-steps{display:none!important}
+.content>.hero .motion-grid{opacity:.08}
+.content>.hero .motion-hero{height:90px;width:min(650px,100%);margin:0 auto 6px}
+.content>.hero .motion-heading{height:87px}
+.content>.hero .motion-word{font-size:clamp(56px,6vw,86px);letter-spacing:-.08em;line-height:1}
+.content>.hero{margin:8px auto 20px}
+.content>.hero .kicker{font-size:9px;letter-spacing:.2em;margin:5px 0 7px}
+.content>.hero h1{font-size:clamp(30px,3.3vw,44px);line-height:1.12;letter-spacing:-.055em;margin:3px 0 8px}
+.content>.hero>p:last-of-type{font-size:13px;line-height:1.5;margin:0;color:#bdb1ce}
+@media(min-width:1600px){
+ .content>.hero .motion-hero{height:105px}
+ .content>.hero .motion-heading{height:100px}
+ .content>.hero .motion-word{font-size:94px}
+ .content>.hero h1{font-size:48px}
+}
+@media(min-width:641px) and (max-width:1024px){
+ .content>.hero .motion-hero{height:80px}
+ .content>.hero .motion-heading{height:78px}
+ .content>.hero .motion-word{font-size:clamp(54px,7.6vw,76px)}
+ .content>.hero h1{font-size:clamp(30px,4vw,39px)}
+}
+@media(max-width:640px){
+ .content>.hero{margin:2px auto 13px}
+ .content>.hero .motion-hero{height:53px;width:100%;margin:0 auto 3px}
+ .content>.hero .motion-heading{height:51px}
+ .content>.hero .motion-word{font-size:clamp(33px,9vw,48px)}
+ .content>.hero .kicker{font-size:8px;margin:3px 0 5px}
+ .content>.hero h1{font-size:clamp(24px,6.2vw,31px);margin:2px 0 5px}
+ .content>.hero>p:last-of-type{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ .content>.hero,.content>section{animation:none!important}
+}
