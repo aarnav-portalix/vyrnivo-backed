@@ -12,6 +12,8 @@ const icons={
  discover:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
  arrow:<path d="M4 12h16m-6-6 6 6-6 6"/>,
  check:<path d="m5 12 4 4L19 6"/>,
+ info:<><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></>,
+ warning:<><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5m0 3h.01"/></>,
  close:<path d="m6 6 12 12M6 18 18 6"/>,
  paste:<><rect x="8" y="5" width="12" height="16" rx="2"/><path d="M11 3h6v4h-6zm-6 6H4v12h11"/></>,
  copy:<><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></>,
@@ -65,7 +67,7 @@ function friendlyError(message,source){
 }
 function AuroraVisual(){return <div className="motion-hero" aria-hidden="true">
  <div className="motion-grid"/>
- <div className="motion-heading"><span className="motion-word" data-text="VYRNIVO">VYRNIVO</span><span className="motion-spark"/></div>
+ <div className="motion-heading"><span className="motion-word" data-text="VYRNIVO">VYRNIVO</span></div>
  <div className="motion-baseline"><span className="motion-index">01 / MEDIA, UNCOMPLICATED</span><span className="motion-rule"><i/></span><span className="motion-end">READY WHEN YOU ARE</span></div>
  </div>}
 function Preview({item,onClose}){
@@ -118,13 +120,13 @@ function App(){
  const [searchError,setSearchError]=useState('');
  const [searchNote,setSearchNote]=useState('');
  const [preview,setPreview]=useState(null);
- const [toast,setToast]=useState('');
+ const [toast,setToast]=useState(null);
  const [tick,setTick]=useState(Date.now());
  const notifyTimer=useRef(null);
  const searchAbort=useRef(null);
  const inputRef=useRef(null);
  const panelRef=useRef(null);
- const showToast=message=>{setToast(message);clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(''),3500)};
+ const showToast=(message,type='info')=>{setToast({message,type});clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(null),3500)};
  const refreshStatus=async()=>{try{const r=await fetch('/api/downloads/status');const s=await r.json();setStatus(r.ok?s:{enabled:false})}catch{setStatus({enabled:false})}};
  useEffect(()=>{let alive=true;fetch('/api/security/status').then(r=>{if(!r.ok)throw Error('Security status unavailable');return r.json()}).then(data=>{if(alive)setHumanStatus({enabled:data.enabled===true,siteKey:data.enabled===true?data.siteKey:null})}).catch(()=>{if(alive)setHumanStatus({enabled:false,siteKey:null})});return()=>{alive=false}},[]);
  useEffect(()=>{
@@ -226,9 +228,9 @@ function App(){
  async function pasteLink(){
   try{
    const clip=(await navigator.clipboard.readText()).trim();
-   if(!/^https?:\/\//i.test(clip)){showToast('Copy a video link first.');return}
+   if(!/^https?:\/\//i.test(clip)){showToast('Copy a video link first.','warning');return}
    setUrl(clip);setSelectedResult(null);setJob(null);setFormError('');inputRef.current?.focus()
-  }catch{showToast('Tap the link field and use Paste.')}
+  }catch{showToast('Tap the link field and use Paste.','warning')}
  }
  const freeBackupCompatible=(mode==='Video + audio'&&container==='MP4')||(mode==='Audio only'&&['MP3','M4A','WAV'].includes(container));
  const freeBackupReady=status?.freeFallbackEnabled&&freeBackupCompatible&&Number(status?.backupRetryAt||0)<=tick;
@@ -247,13 +249,13 @@ function App(){
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Could not start download.');
    setJob(data);
-   if(data.state==='ready')showToast('Your file is ready.')
+   if(data.state==='ready')showToast('Your file is ready.','success')
   }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
   finally{setBusy(false)}
  }
  async function copyLink(){
-  try{await navigator.clipboard.writeText(location.origin+job.downloadUrl);showToast('Link copied!')}
-  catch{showToast('Hold the Download button to copy its link.')}
+  try{await navigator.clipboard.writeText(location.origin+job.downloadUrl);showToast('Link copied!','success')}
+  catch{showToast('Hold the Download button to copy its link.','warning')}
  }
  async function runSearch(source,kind,term){
   const q=term.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
@@ -412,7 +414,7 @@ function App(){
   <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav12</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
   {humanCheckOpen&&humanStatus.enabled&&<HumanCheck siteKey={humanStatus.siteKey} onVerified={token=>startDownload(null,token)} onClose={()=>setHumanCheckOpen(false)}/>}
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
-  {toast&&<div className="toast" role="status"><Icon name="check" size={18}/>{toast}</div>}
+  {toast&&<div className={"toast toast-"+toast.type} role={toast.type==="warning"?"alert":"status"}><Icon name={toast.type==="success"?"check":toast.type==="warning"?"warning":"info"} size={18}/><span>{toast.message}</span></div>}
  </div>
 }
 createRoot(document.getElementById('root')).render(<App/>);
