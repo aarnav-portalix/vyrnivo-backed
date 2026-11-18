@@ -270,3 +270,18 @@ test('source-blocked audio downloads use one MP3 backup transfer then deliver re
   }finally{manager.close()}
  }
 });
+
+test('quality options are passed to the extractor as resolution caps',()=>{
+ for(const quality of ['720p','1080p','1440p','2160p · 4K']){
+  const height=quality==='2160p · 4K'?2160:Number.parseInt(quality,10);
+  const args=argumentsFor({...input,quality},'/tmp/quality-test');
+  assert.ok(args[args.indexOf('-f')+1].includes('height<='+height));
+ }
+});
+test('audio bitrate and container choices are validated',()=>{
+ for(const rate of ['120 kbps','320 kbps']){
+  const args=argumentsFor({...input,mode:'Audio only',container:'MP3',audioBitrate:rate},'/tmp/audio-test');
+  assert.equal(args[args.indexOf('--audio-quality')+1],rate.split(' ')[0]+'K');
+ }
+ assert.throws(()=>validate({...input,mode:'Audio only',container:'MP4',audioBitrate:'320 kbps'}));
+});
