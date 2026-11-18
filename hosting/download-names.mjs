@@ -11,7 +11,11 @@ export function safeMediaTitle(raw){
  const normalized=raw.normalize('NFKC').replace(BAD_CHARS,' ')
   .replace(/[\r\n\t]+/g,' ').replace(/\s+/g,' ').trim()
   .replace(/^[.\-\s]+|[.\-\s]+$/g,'');
- const chars=Array.from(normalized).slice(0,MAX_TITLE).join('').trim().replace(/[.\s]+$/g,'');
+ const withoutMirror=normalized
+  .replace(/^\[(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+\][\s_-]*/i,'')
+  .replace(/^\((?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+\)[\s_-]*/i,'');
+ const readable=withoutMirror.replace(/_+/g,' ').replace(/\s+/g,' ').trim();
+ const chars=Array.from(readable).slice(0,MAX_TITLE).join('').trim().replace(/[.\s]+$/g,'');
  return chars==='.'||chars==='..'?'':chars;
 }
 
