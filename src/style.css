@@ -935,3 +935,21 @@ input,textarea,[contenteditable="true"],.message,.message *,
 .transfer-stats small{font-size:9px;letter-spacing:.12em;font-weight:750;color:#a9a2bd;user-select:none;-webkit-user-select:none}
 .transfer-stats b{font-size:13px;line-height:1.3;color:#f3efff;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 @media(max-width:420px){.transfer-stats{gap:5px}.transfer-stats>span{padding:9px 7px}.transfer-stats small{font-size:8px}.transfer-stats b{font-size:11px}}
+
+/* Dashboard hotfix: the parent pending panel is a two-column grid.
+   Full-width children MUST span both columns, or each stat gets squeezed into 30px. */
+.download-result.pending>.transfer-stats,
+.download-result.pending>.loading-track,
+.download-result.pending>.processing-note{grid-column:1 / -1;width:100%;min-width:0}
+.download-result.pending>.transfer-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:10px;margin:7px 0 4px}
+.download-result.pending>.transfer-stats>span{box-sizing:border-box;min-width:0;width:100%;padding:12px 13px;overflow:hidden}
+.download-result.pending>.transfer-stats small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.download-result.pending>.transfer-stats b{display:block;overflow-wrap:normal;word-break:normal;white-space:normal;font-size:clamp(12px,1.5vw,16px)}
+.download-result.pending>.loading-track{margin-top:7px}
+@media(max-width:520px){
+ .download-result.pending>.transfer-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .download-result.pending>.transfer-stats>span:last-child{grid-column:1/-1}
+ .download-result.pending>.transfer-stats>span{padding:10px 12px}
+ .download-result.pending>.transfer-stats b{font-size:13px}
+}
+@media(max-width:340px){.download-result.pending>.transfer-stats{grid-template-columns:1fr}.download-result.pending>.transfer-stats>span:last-child{grid-column:auto}}
