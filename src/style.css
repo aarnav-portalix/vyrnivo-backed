@@ -1009,3 +1009,15 @@ input,textarea,[contenteditable="true"],.message,.message *,
 .developer-section p{font-size:13px;line-height:1.8;color:#c3b8d1;margin:0;max-width:66ch}
 .developer-section .developer-footnote{margin-top:12px;color:#9488a9;font-size:11px}
 @media(max-width:520px){.developer-section{padding:19px 17px;margin:17px 0;border-radius:16px}.developer-section p{font-size:12px;line-height:1.7}}
+
+/* Phase 6: accurate notification semantics and quieter hero detailing. */
+.motion-spark{display:none!important}
+.toast{box-sizing:border-box;max-width:min(420px,calc(100vw - 24px));min-width:0;line-height:1.4;overflow-wrap:anywhere}
+.toast svg{flex:0 0 auto}
+.toast span{min-width:0}
+.toast-warning{border-color:#e8b97b75;background:#33273af5;color:#ffe2b8}
+.toast-info{border-color:#c5a0ee6d;color:#f1e9ff}
+.toast-success{border-color:#8bc6a970;color:#d9f5e4}
+@media(max-width:520px){
+ .toast{left:12px;right:12px;transform:none;width:auto;max-width:none;bottom:calc(86px + env(safe-area-inset-bottom));padding:12px 14px;border-radius:13px;font-size:12px}
+}
