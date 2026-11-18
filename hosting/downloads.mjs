@@ -120,7 +120,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }catch(e){
   if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_RATE_LIMITED','SOURCE_ACCESS_DENIED','SOURCE_VERIFICATION_REQUIRED','SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
    try{await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});await backup();return}
-   catch(fallbackError){e=fallbackError}
+   catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,code:fallbackError?.code||'UNKNOWN'}));e=fallbackError}
   }
   if(e?.code?.startsWith('FREE_PROVIDER_')){
    j.failureCode=e.code;
@@ -130,9 +130,9 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   }
   j.state='failed';j.stage='Could not finish';
   j.error=e?.code?.startsWith('FREE_PROVIDER_')?
-   'This video could not be prepared with the selected settings. Try another video quality, such as 720p or Best available.':
-   e?.message||'Could not prepare this video. Try another quality.';
-  j.canRetryWithDifferentFormat=true;
+   (e.code==='FREE_PROVIDER_RATE_LIMITED'?'The backup service is rate-limited right now. Please try again later.':e.code==='FREE_PROVIDER_MEDIA_UNAVAILABLE'?'This audio or video is unavailable through the backup service. The source may restrict downloads.':e.code==='FREE_PROVIDER_FORMAT_UNSUPPORTED'?'The backup does not support this file format. Choose another audio format.':e.code==='FREE_PROVIDER_TOO_LARGE'?'This media exceeds the 200 MB limit.':e.code==='FREE_PROVIDER_BUSY'?'The backup is still preparing the file. Please try again shortly.':'The backup download failed or was interrupted. Please try again later.'):
+   e?.message||'Could not prepare this media. Please try again later.';
+  j.canRetryWithDifferentFormat=['MEDIA_FORMAT_UNAVAILABLE','FREE_PROVIDER_FORMAT_UNSUPPORTED'].includes(j.failureCode);
   await rm(j.dir,{recursive:true,force:true});
  }finally{if(inProgress.get(j.requestKey)===j.id)inProgress.delete(j.requestKey);active=false}}
  const cleanup=async()=>{for(const [id,j]of jobs){if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';if(successful.get(j.requestKey)===id)successful.delete(j.requestKey);await rm(j.dir,{recursive:true,force:true})}if(['failed','expired'].includes(j.state)&&now()-j.createdAt>3600000)jobs.delete(id)}};
