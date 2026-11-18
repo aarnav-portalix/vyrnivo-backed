@@ -13,7 +13,7 @@ export function queryTerms(query){
 }
 export function matchEvidence(item,query){
  const terms=queryTerms(query);
- const primary=clean([item.title,item.creator,item.username].filter(Boolean).join(' '));
+ const primary=clean([item.title,item.username,item.creator==='Public Reel'?'':item.creator,item.creator==='Indexed public Reel'?'':item.creator].filter(Boolean).join(' '));
  const supplementary=clean(item.description||item.snippet||'');
  if(!terms.length)return {score:0,matches:0,accepted:false};
  const mainMatched=terms.filter(t=>primary.split(' ').some(w=>w===t||w.startsWith(t)&&t.length>=4));
