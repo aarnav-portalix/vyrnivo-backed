@@ -1079,3 +1079,45 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(prefers-reduced-motion:reduce){
  .motion-word,.motion-word:after,.motion-rule i{animation:none!important}
 }
+
+/* Device-specific scale: desktop gets a commanding hero; tablet stays balanced; mobile stays compact. */
+@media(min-width:1200px){
+ .content{width:min(1060px,calc(100% - 64px));max-width:1060px;padding:24px 32px 90px}
+ .hero{margin:20px auto 31px}
+ .motion-hero{width:min(940px,100%);height:235px;margin:0 auto 16px}
+ .motion-heading{height:165px}
+ .motion-word{font-size:clamp(112px,9.8vw,154px);letter-spacing:-.092em}
+ .motion-baseline{width:min(760px,92%);font-size:10px;letter-spacing:.11em}
+ .hero .kicker{font-size:12px;letter-spacing:.24em}
+ .hero h1{font-size:clamp(59px,5vw,78px)}
+ .hero>p:last-of-type{font-size:18px;margin-top:15px}
+ .flow-steps{margin-top:22px;gap:10px}
+ .flow-steps span{font-size:11px;padding:9px 15px}
+ .panel.surface-interactive{padding:30px 32px;border-radius:28px}
+ .url-row{min-height:69px}
+ .url-row input{font-size:16px}
+ .format-tab{min-height:54px;font-size:14px}
+ .form-actions{gap:15px;margin-top:20px}
+ .form-actions .cta,.form-actions .options-btn{min-height:60px;font-size:15px}
+}
+@media(min-width:1600px){
+ .content{width:min(1160px,calc(100% - 90px));max-width:1160px}
+ .motion-hero{height:255px}
+ .motion-word{font-size:160px}
+ .hero h1{font-size:80px}
+}
+@media(min-width:768px) and (max-width:1199px){
+ .content{width:min(900px,calc(100% - 32px));max-width:900px}
+ .motion-hero{width:min(790px,100%);height:172px}
+ .motion-heading{height:115px}
+ .motion-word{font-size:clamp(70px,9vw,112px)}
+ .hero h1{font-size:clamp(43px,5.5vw,62px)}
+ .panel.surface-interactive{padding:clamp(22px,3vw,28px)}
+}
+@media(min-width:641px) and (max-width:767px){
+ .content{width:min(690px,100%);max-width:690px}
+ .motion-hero{height:136px}
+ .motion-heading{height:95px}
+ .motion-word{font-size:clamp(58px,10vw,78px)}
+ .hero h1{font-size:clamp(38px,6vw,48px)}
+}
