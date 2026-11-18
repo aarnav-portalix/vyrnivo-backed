@@ -93,7 +93,7 @@ function App(){
  const [legalSection,setLegalSection]=useState(legalSections.includes(initialPage)?initialPage:'privacy');
  const [url,setUrl]=useState('');
  const [selectedResult,setSelectedResult]=useState(null);
- const [mode,setMode]=useState(()=>saved('vyrnivo-mode','Video + audio'));
+ const [mode,setMode]=useState(()=>{const stored=saved('vyrnivo-mode','Video + audio');return ['Video + audio','Video only','Audio only'].includes(stored)?stored:'Video + audio'});
  const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
  const [container,setContainer]=useState(()=>saved('vyrnivo-mode','Video + audio')==='Audio only'?'MP3':'MP4');
  const [audioBitrate,setAudioBitrate]=useState('320 kbps');
@@ -316,7 +316,7 @@ function App(){
        <p className="processing-note">{Number.isFinite(remainingEstimate)?'Based on the latest transfer report. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
       {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
-     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {mode!=='Audio only'&&isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
  </>;
