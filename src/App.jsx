@@ -376,6 +376,7 @@ function App(){
     }
 
    {page==='about'&&<section className="about-intro"><h2>All the extras, neatly organized.</h2><p>Frequently asked questions, policies, and everything else about Vyrnivo.</p><div className="about-notes"><span>Free to use</span><span>10-minute file links</span><span>No account needed</span></div></section>}
+   {page==='about'&&<section className="developer-section" id="developer" aria-labelledby="developer-title"><div className="developer-header"><span className="developer-eyebrow">THE PERSON BEHIND THE PROJECT</span><h2 id="developer-title">About the Developer</h2></div><p>Vyrnivo is an independent project created by Aarnav12, focused on making media tools easier to use, thoughtfully designed, and accessible across devices.</p><p className="developer-footnote">Developer story and more details coming soon.</p></section>}
    {page==='about'&&<section className="faq" id="faq" aria-labelledby="faq-title">
     <div className="faq-head"><p className="faq-eyebrow">Need a hand?</p><h2 id="faq-title">Frequently asked questions</h2></div>
     <div className="faq-items">{faqs.map(([question,answer])=><details key={question} className="faq-item"><summary><span>{question}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div>
