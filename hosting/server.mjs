@@ -35,7 +35,7 @@ const server=http.createServer(async(req,res)=>{
  const json=(d,s=200)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(d))};
  try{
  const path=new URL(req.url,'http://localhost').pathname;
- if(path==='/health')return json({ok:true,downloads:downloads.enabled,converter:converter.enabled,fileHosting:downloads.enabled,readyForDownloads:downloads.enabled});
+ if(path==='/health'){res.setHeader('access-control-allow-origin','*');return json({ok:true,downloads:downloads.enabled,converter:converter.enabled,fileHosting:downloads.enabled,readyForDownloads:downloads.enabled});}
  if(path==='/ready')return json({ready:downloads.enabled,downloads:downloads.enabled,converter:converter.enabled},downloads.enabled?200:503);
  if(path==='/api/security/status'&&req.method==='GET')return json(humanCheck.publicStatus());
  if((path.startsWith('/api/downloads')||path.startsWith('/api/files')||path.startsWith('/api/converter')||path.startsWith('/api/presence'))&&!allowApi(req,env))return json({error:'Cross-origin write is not allowed.'},403);
