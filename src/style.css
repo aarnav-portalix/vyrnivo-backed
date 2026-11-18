@@ -1282,3 +1282,35 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(prefers-reduced-motion:reduce){
  .logo-icon,.logo:hover .logo-icon,.logo:active .logo-icon{transition:none!important;transform:none!important}
 }
+
+/* Phase 18: precise, low-cost motion language. No infinite animations, filters, or layout shifts. */
+:root{--vn-interact:cubic-bezier(.2,.75,.25,1)}
+.logo-icon,.logo-icon img{backface-visibility:hidden}
+.logo-icon{overflow:visible;transition:transform 210ms var(--vn-interact)}
+.logo-icon img{width:100%;height:100%;object-fit:contain;transition:transform 210ms var(--vn-interact)}
+@media(hover:hover) and (pointer:fine){
+ .logo:hover .logo-icon{transform:translate3d(0,-2px,0) rotate(-3deg);filter:none}
+ .logo:hover .logo-icon img{transform:scale(1.045)}
+ .logo:active .logo-icon{transform:translate3d(0,0,0) rotate(0) scale(.97)}
+}
+:is(.tab,.format-tab,.cta,.options-btn,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn,.search-kind,.search-source,.discover-hub button,.about-intro button):focus-visible{
+ outline:2px solid #d7b7ff;outline-offset:3px
+}
+@media(hover:hover) and (pointer:fine){
+ :is(.tab,.format-tab,.cta,.options-btn,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn,.search-kind,.search-source,.discover-hub button,.about-intro button){
+ transition-property:transform,border-color,background-color,opacity;
+ transition-duration:165ms;transition-timing-function:var(--vn-interact)
+ }
+ :is(.cta,.mini-primary,.outline-btn,.discover-hub button,.about-intro button):not(:disabled):hover{transform:translate3d(0,-2px,0)}
+ :is(.tab,.format-tab,.options-btn,.paste-btn,.status-toggle,.search-kind,.search-source):not(:disabled):hover{transform:translate3d(0,-1px,0)}
+ :is(.tab,.format-tab,.cta,.options-btn,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn,.search-kind,.search-source,.discover-hub button,.about-intro button):not(:disabled):active{transform:scale(.985)}
+}
+@media(hover:none){
+ :is(.tab,.format-tab,.cta,.options-btn,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn,.search-kind,.search-source,.discover-hub button,.about-intro button){transition-property:background-color,border-color,opacity;transition-duration:130ms}
+}
+@media(prefers-reduced-motion:reduce){
+ .logo-icon,.logo-icon img,.logo:hover .logo-icon img,
+ :is(.tab,.format-tab,.cta,.options-btn,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn,.search-kind,.search-source,.discover-hub button,.about-intro button){
+ transition:none!important;animation:none!important;transform:none!important
+ }
+}

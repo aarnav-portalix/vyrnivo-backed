@@ -1,5 +1,5 @@
 /* Offline app shell only. Never cache user links, API responses, or media files. */
-const CACHE='vyrnivo-shell-v1';
+const CACHE='vyrnivo-shell-v2';
 const ASSETS=['/','/app.css','/app.js','/favicon.svg','/manifest.webmanifest'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))),self.clients.claim()]))});
