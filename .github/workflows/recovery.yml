@@ -1,0 +1,52 @@
+name: Disaster recovery verification
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+permissions:
+  contents: read
+jobs:
+  backup-and-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Clone complete repository history
+        run: git clone --mirror "${{ github.server_url }}/${{ github.repository }}.git" vyrnivo-mirror.git
+      - name: Verify Git object integrity
+        run: git -C vyrnivo-mirror.git fsck --full --no-reflogs
+      - name: Create dated portable archive
+        run: tar -czf "vyrnivo-git-mirror-${GITHUB_RUN_ID}.tar.gz" vyrnivo-mirror.git
+      - name: Store recovery archive for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyrnivo-git-mirror-${{ github.run_id }}
+          path: vyrnivo-git-mirror-*.tar.gz
+          retention-days: 30
+          if-no-files-found: error
+      - name: Restore source from archive and test
+        run: |
+          mkdir -p recovery
+          tar -xzf vyrnivo-git-mirror-*.tar.gz -C recovery
+          git clone recovery/vyrnivo-mirror.git restored
+          cd restored
+          npm ci
+          npm run build
+          node --test --test-concurrency=1 hosting/*.test.mjs
+      - name: Build independent container from restored checkout
+        run: docker build -t vyrnivo-recovery:check ./restored
+      - name: Start recovered container with downloads disabled
+        run: docker run -d --rm --name vyrnivo-recovery -p 127.0.0.1:18080:10000 -e DOWNLOADS_ENABLED=false vyrnivo-recovery:check
+      - name: Verify recovery health and readiness semantics
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/health > /tmp/health.json; then break; fi
+            sleep 2
+          done
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/health.json'));if(d.ok!==true||d.downloads!==false)process.exit(1)"
+          status=$(curl -s -o /tmp/ready.json -w '%{http_code}' http://127.0.0.1:18080/ready)
+          test "$status" = 503
+          node -e "const fs=require('fs');if(JSON.parse(fs.readFileSync('/tmp/ready.json')).ready!==false)process.exit(1)"
+          curl --fail --silent http://127.0.0.1:18080/ | grep -qi 'vyrnivo'
+      - name: Clean up recovery container
+        if: always()
+        run: docker rm -f vyrnivo-recovery || true
