@@ -61,7 +61,7 @@ export function parseExtractorTelemetry(output){
   etaSeconds=Math.ceil(Number.parseFloat(value));
  }
  if(!Number.isFinite(etaSeconds)||etaSeconds>7200||etaSeconds<0)etaSeconds=null;
- const parsedPositive=value=>{const s=String(value??'').trim();if(!/^\\d+(?:\\.\\d+)?$/.test(s))return null;const n=Number(s);return Number.isFinite(n)&&n>=0&&n<=1024*1024*1024?Math.round(n):null;};
+ const parsedPositive=value=>{const s=String(value??'').trim();if(!/^\d+(?:\.\d+)?$/.test(s))return null;const n=Number(s);return Number.isFinite(n)&&n>=0&&n<=1024*1024*1024?Math.round(n):null;};
  const speedBytesPerSecond=parsedPositive(speedText);
  const transferredBytes=parsedPositive(receivedText);
  const totalBytes=parsedPositive(totalText);
