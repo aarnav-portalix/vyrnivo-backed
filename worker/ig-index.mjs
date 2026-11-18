@@ -23,19 +23,26 @@ export async function indexedInstagram(request,{fetcher=fetch,now=Date.now}={}){
  if(q.length<2||q.length>100)return Response.json({error:'Enter a topic between 2 and 100 characters.'},{status:400});
  const key=q.toLowerCase();
  const old=cache.get(key);if(old&&now()-old.time<120000)return Response.json(old.data);
- const u=new URL('https://www.bing.com/search');
- u.searchParams.set('q','site:instagram.com/reel/ '+q);
- u.searchParams.set('format','rss');
- try{
-  const r=await fetcher(u.href,{redirect:'manual',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(8000)});
-  if(!r.ok||r.status>=300&&r.status<400)throw Error('Search engine unavailable');
-  const xml=(await r.text()).slice(0,1500000);
-  const items=parseIndexRss(xml);
-  if(!items.length)throw Error('No indexed Reel results');
-  const data={items,query:q,notice:'Public search-index results. Some Reels may be unavailable or refuse embeds.'};
-  if(cache.size>120)cache.clear();cache.set(key,{time:now(),data});
-  return Response.json(data);
- }catch{
-  return Response.json({items:[],query:q,notice:'In-app public Reel lookup returned no accessible results. Use the indexed web search link below or paste a specific Reel URL.'});
+ const terms=[q,'"'+q+'"'];
+ const queries=[...new Set(terms.map(term=>'site:instagram.com/reel/ '+term))];
+ const responses=await Promise.allSettled(queries.map(async term=>{
+  const u=new URL('https://www.bing.com/search');
+  u.searchParams.set('q',term);
+  u.searchParams.set('format','rss');
+  const r=await fetcher(u.href,{redirect:'manual',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(6500)});
+  if(!r.ok)return [];
+  return parseIndexRss((await r.text()).slice(0,1_500_000));
+ }));
+ const seen=new Set(),items=[];
+ for(const response of responses){
+  if(response.status!=='fulfilled')continue;
+  for(const item of response.value){
+   if(seen.has(item.id))continue;
+   seen.add(item.id);items.push(item);
+  }
  }
+ const data={items:items.slice(0,24),query:q,notice:items.length?'Publicly indexed Reels; availability may vary.':'No publicly indexed Reel matches found.'};
+ if(cache.size>120)cache.clear();
+ cache.set(key,{time:now(),data});
+ return Response.json(data);
 }
