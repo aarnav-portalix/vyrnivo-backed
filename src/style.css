@@ -1000,3 +1000,12 @@ input,textarea,[contenteditable="true"],.message,.message *,
  .panel,.search-panel{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
  .tab,.format-tab,.options-btn,.cta,.outline-btn,.mini-primary,.paste-btn,.icon-action,.round-btn{backdrop-filter:none;-webkit-backdrop-filter:none}
 }
+
+/* About page developer section: intentionally understated and readable. */
+.developer-section{margin:22px 0 26px;padding:clamp(20px,3vw,30px);border:1px solid #ffffff25;border-radius:21px;background:linear-gradient(145deg,#ffffff0c,#ffffff04)}
+.developer-header{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
+.developer-eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;color:#c3a5ee}
+.developer-section h2{font-family:Manrope,system-ui,sans-serif;font-size:clamp(21px,3vw,28px);letter-spacing:-.035em;margin:0;color:#f6f1ff}
+.developer-section p{font-size:13px;line-height:1.8;color:#c3b8d1;margin:0;max-width:66ch}
+.developer-section .developer-footnote{margin-top:12px;color:#9488a9;font-size:11px}
+@media(max-width:520px){.developer-section{padding:19px 17px;margin:17px 0;border-radius:16px}.developer-section p{font-size:12px;line-height:1.7}}
