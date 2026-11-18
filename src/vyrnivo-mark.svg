@@ -1,9 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Vyrnivo logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Vyrnivo orbital V">
 <defs>
- <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#302449"/><stop offset=".55" stop-color="#1b1631"/><stop offset="1" stop-color="#141126"/></linearGradient>
- <linearGradient id="letter" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff7ff"/><stop offset=".52" stop-color="#d9c0ff"/><stop offset="1" stop-color="#a998ff"/></linearGradient>
+<linearGradient id="frame" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b991ff"/><stop offset=".5" stop-color="#8655dc"/><stop offset="1" stop-color="#a67aff"/></linearGradient>
+<linearGradient id="v" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#fffaff"/><stop offset=".55" stop-color="#f1ddff"/><stop offset="1" stop-color="#b48dff"/></linearGradient>
+<linearGradient id="orbit" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#8e49ec"/><stop offset=".48" stop-color="#c99cff"/><stop offset="1" stop-color="#a768f8"/></linearGradient>
 </defs>
-<rect x="1.25" y="1.25" width="61.5" height="61.5" rx="17" fill="url(#bg)" stroke="#cdb5f8" stroke-opacity=".42" stroke-width="1.5"/>
-<path d="M15.5 18 31 46 48.5 18" fill="none" stroke="url(#letter)" stroke-linecap="round" stroke-linejoin="round" stroke-width="9"/>
-<path d="M10 9h44" stroke="#fff" stroke-opacity=".09" stroke-linecap="round"/>
+<rect x="4" y="4" width="120" height="120" rx="28" fill="#160e2c" stroke="url(#frame)" stroke-width="2"/>
+<!-- A deliberately asymmetric custom V, with two diagonal cut marks -->
+<path d="M28 34H43L64 80L84 34H101L67 104H58Z" fill="url(#v)"/>
+<path d="M24 34H30L44 63L39 51Z" fill="#160e2c"/>
+<path d="M73 91L80 78H86L79 92Z" fill="#160e2c"/>
+<path d="M70 98L76 87H81L75 98Z" fill="#160e2c"/>
+<!-- Orbital ribbon sweeps across the letter rather than enclosing it in a generic ring -->
+<path d="M37 73C18 84 21 92 43 91C63 90 92 77 104 66C113 57 111 52 101 47C117 51 119 61 106 73C88 91 54 104 33 101C12 98 16 85 37 73Z" fill="url(#orbit)"/>
+<path d="M34 94C55 95 85 82 105 67" fill="none" stroke="#f5ddff" stroke-opacity=".8" stroke-width="1.8" stroke-linecap="round"/>
 </svg>
