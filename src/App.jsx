@@ -63,35 +63,11 @@ function friendlyError(message,source){
  if(m.length>150)return 'Could not prepare this video. Try a different link.';
  return m||('Could not download this '+source+' video.');
 }
-function AuroraVisual(){return <div className="aurora-visual" aria-hidden="true">
- <svg viewBox="0 0 640 270" role="presentation" className="aurora-svg">
-  <defs>
-   <linearGradient id="aurora-ring" x1="62" y1="62" x2="556" y2="192" gradientUnits="userSpaceOnUse">
-    <stop stopColor="#7DE0FC" stopOpacity=".75"/><stop offset=".46" stopColor="#D79AFF" stopOpacity=".52"/><stop offset="1" stopColor="#FF90D0" stopOpacity=".7"/>
-   </linearGradient>
-   <radialGradient id="aurora-core"><stop stopColor="#C7A0FF" stopOpacity=".7"/><stop offset=".6" stopColor="#825BCE" stopOpacity=".4"/><stop offset="1" stopColor="#6535A9" stopOpacity=".08"/></radialGradient>
-   <linearGradient id="aurora-disc" x1="240" y1="49" x2="375" y2="207" gradientUnits="userSpaceOnUse">
-    <stop stopColor="#E4C8FF" stopOpacity=".82"/><stop offset=".53" stopColor="#795DCE" stopOpacity=".7"/><stop offset="1" stopColor="#2F235F" stopOpacity=".9"/>
-   </linearGradient>
-  </defs>
-  <ellipse className="aurora-halo" cx="322" cy="128" rx="155" ry="100" fill="url(#aurora-core)"/>
-  <g className="aurora-orbits">
-   <ellipse cx="322" cy="128" rx="260" ry="62" transform="rotate(-21 322 128)" fill="none" stroke="url(#aurora-ring)" strokeWidth="1.6"/>
-   <ellipse cx="322" cy="128" rx="243" ry="71" transform="rotate(24 322 128)" fill="none" stroke="url(#aurora-ring)" strokeDasharray="3 9" strokeWidth="1.5"/>
-  </g>
-  <g className="aurora-disc">
-   <circle cx="322" cy="128" r="87" fill="url(#aurora-disc)" stroke="#EDCEFF" strokeOpacity=".65" strokeWidth="1.5"/>
-   <circle cx="322" cy="128" r="69" fill="#1A153A" fillOpacity=".8" stroke="#CFB4FF" strokeOpacity=".65" strokeDasharray="4 10"/>
-   <circle cx="322" cy="128" r="57" fill="#241843" stroke="#FFF2FF" strokeOpacity=".3"/>
-   <path d="M322 91V144M302 125L322 145L342 125M297 158H347" stroke="#FAEBFF" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-  </g>
-  <circle className="aurora-particle p1" cx="82" cy="188" r="4.5" fill="#8BE8F8"/>
-  <circle className="aurora-particle p2" cx="552" cy="75" r="4.5" fill="#FFB6EA"/>
-  <circle className="aurora-particle p3" cx="480" cy="224" r="3.5" fill="#DDB6FF"/>
-  <path d="M132 48L138 62L152 68L138 74L132 88L126 74L112 68L126 62Z" fill="#BDA8FF" opacity=".76"/>
-  <path d="M529 163L533 173L543 177L533 181L529 191L525 181L515 177L525 173Z" fill="#86D9FD" opacity=".75"/>
- </svg>
-</div>}
+function AuroraVisual(){return <div className="kinetic-visual" aria-hidden="true"><div className="kinetic-field">
+ <div className="kinetic-topline"><span className="kinetic-live-dot"/>VYRNIVO <span className="kinetic-topline-right">TRANSFER / 01</span></div>
+ <div className="kinetic-track"><span className="kinetic-rail"/><span className="kinetic-packet"><Icon name="download" size={23}/></span><span className="kinetic-destination"><Icon name="check" size={20}/></span></div>
+ <div className="kinetic-footer"><span>LINK RECEIVED</span><div className="kinetic-progress"><span/></div><span>FILE READY</span></div>
+ </div></div>}
 function Preview({item,onClose}){
  useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
  useEffect(()=>{
@@ -317,19 +293,22 @@ function App(){
   return Math.floor(value/60)+':'+String(value%60).padStart(2,'0');
  };
  const elapsedProcessing=job?.createdAt?Math.max(0,Math.floor((tick-job.createdAt)/1000)):(job?.elapsedSeconds||0);
- const remainingEstimate=job?.state==='processing'&&['measured-transfer','reported-extractor','measured-conversion'].includes(job?.progressSource)&&Number.isFinite(job?.estimatedSecondsRemaining)
-  ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining-(tick-(job?.progressUpdatedAt||tick))/1000))
-  :null;
+ const remainingEstimate=job?.state==='processing'
+  &&['measured-transfer','reported-extractor','measured-conversion'].includes(job?.progressSource)
+  &&Number.isFinite(job?.estimatedSecondsRemaining)
+  &&Number.isFinite(job?.progressUpdatedAt)
+  &&tick-job.progressUpdatedAt>=0&&tick-job.progressUpdatedAt<7000
+  ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining)):null;
  const measuredProgress=Number.isFinite(job?.progressPercent);
  const jobView=<>
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite">
        <div className="loading-spinner" aria-hidden="true"/>
        <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p>
         <div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span>
-        <span>{Number.isFinite(remainingEstimate)?<>Approximately <b>{formatDuration(remainingEstimate)}</b> left</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Measuring progress…'}</span></div>
+        <span>{Number.isFinite(remainingEstimate)?<>Estimated <b>{formatDuration(remainingEstimate)}</b> remaining</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Measuring progress…'}</span></div>
        </div>
        <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
-       <p className="processing-note">{Number.isFinite(remainingEstimate)?'Calculated from actual transfer speed. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
+       <p className="processing-note">{Number.isFinite(remainingEstimate)?'Based on the latest transfer report. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
       {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
      {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}

@@ -84,3 +84,10 @@ test('public oEmbed title is a bounded optional lookup with no cookies',async()=
  }),null);
  assert.equal(await lookupPublicTitle(url,{fetchImpl:async()=>new Response('denied',{status:403})}),null);
 });
+
+test('remove mirror domain prefixes from output titles',()=>{
+ const title='[save.brianniarnehan.com]_Blitz_A_Roblox_Rivals_Montage_e7alm6tqJFk';
+ assert.equal(safeMediaTitle(title),'Blitz A Roblox Rivals Montage e7alm6tqJFk');
+ assert.equal(displayDownloadName({title,url,mode:'Video + audio',quality:'1080p',storageName:'media.mp4'}),'vyrnivo-Blitz A Roblox Rivals Montage e7alm6tqJFk (1080p).mp4');
+ assert.equal(safeMediaTitle('my-site.com is a real title'),'my-site.com is a real title');
+});
