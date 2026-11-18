@@ -1271,3 +1271,14 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(max-width:640px){
  .content>.hero .motion-hero{overflow:visible}
 }
+
+/* Logo refinement: quiet, responsive motion that never alters the V geometry. */
+.logo-icon{background:transparent;transform:translateZ(0);will-change:auto;transition:transform 220ms cubic-bezier(.22,.8,.24,1),filter 220ms ease}
+.logo-icon img{display:block;transform:none;filter:none}
+@media(hover:hover) and (pointer:fine){
+ .logo:hover .logo-icon{transform:translate3d(0,-2px,0) scale(1.035);filter:drop-shadow(0 5px 11px #b38cff48)}
+ .logo:active .logo-icon{transform:translate3d(0,0,0) scale(.985)}
+}
+@media(prefers-reduced-motion:reduce){
+ .logo-icon,.logo:hover .logo-icon,.logo:active .logo-icon{transition:none!important;transform:none!important}
+}
