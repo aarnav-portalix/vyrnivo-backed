@@ -1021,3 +1021,44 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(max-width:520px){
  .toast{left:12px;right:12px;transform:none;width:auto;max-width:none;bottom:calc(86px + env(safe-area-inset-bottom));padding:12px 14px;border-radius:13px;font-size:12px}
 }
+
+/* Phase 8: mobile-first hierarchy. Keep the existing animation curves. */
+@media(max-width:640px){
+ .content{padding-top:0}
+ .hero{margin:0 auto 14px}
+ .motion-hero{height:72px;width:min(440px,100%);margin:0 auto 2px;overflow:hidden}
+ .motion-heading{height:64px}
+ .motion-word{font-size:clamp(32px,10vw,55px);line-height:1}
+ .motion-grid{opacity:.12}
+ .motion-baseline{display:none}
+ .hero .kicker{display:none}
+ .hero h1{font-size:clamp(28px,7.5vw,37px);line-height:1.14;margin:3px 0 0}
+ .hero>p:last-of-type{font-size:12px;line-height:1.4;margin:7px 0 0}
+ .flow-steps{display:none}
+ .panel.surface-interactive{padding:15px;border-radius:20px}
+ .url-row{min-height:49px;padding:4px 2px 9px;gap:9px}
+ .url-row>svg{width:17px;height:17px;flex:none}
+ .url-row input{font-size:16px}
+ .format-tabs{margin-top:12px}
+ .format-tab{min-height:45px;padding:10px 4px;font-size:13px}
+ .form-actions{margin-top:12px;gap:9px}
+ .form-actions .options-btn,.form-actions .cta{min-height:47px}
+ .discover-teaser{display:none}
+ .tabs{bottom:calc(8px + env(safe-area-inset-bottom));left:12px;right:12px;width:calc(100% - 24px);padding:5px;border-radius:18px}
+ .tabs .tab{min-height:54px;padding:8px 5px;gap:4px}
+ .content{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+ .footer{padding-bottom:calc(105px + env(safe-area-inset-bottom))}
+}
+@media(max-width:380px){
+ .motion-hero{height:60px}
+ .motion-heading{height:56px}
+ .motion-word{font-size:clamp(30px,9.5vw,42px)}
+ .hero h1{font-size:27px}
+ .panel.surface-interactive{padding:12px}
+ .format-tab{font-size:12px}
+}
+@media(min-width:641px) and (max-width:1024px){
+ .motion-hero{height:148px}
+ .hero{margin:12px auto 23px}
+ .flow-steps{gap:8px}
+}
