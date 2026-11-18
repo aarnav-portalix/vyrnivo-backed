@@ -68,7 +68,6 @@ function friendlyError(message,source){
 function AuroraVisual(){return <div className="motion-hero" aria-hidden="true">
  <div className="motion-grid"/>
  <div className="motion-heading"><span className="motion-word" data-text="VYRNIVO">VYRNIVO</span></div>
- <div className="motion-baseline"><span className="motion-index">01 / MEDIA, UNCOMPLICATED</span><span className="motion-rule"><i/></span><span className="motion-end">READY WHEN YOU ARE</span></div>
  </div>}
 function Preview({item,onClose}){
  useEffect(()=>{const close=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[onClose]);
@@ -330,12 +329,11 @@ function App(){
     {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='discover'?'Discover':'About'}</span></button>)}
    </nav>
   </header>
-  <main className="content" id="main-content">
+  <main className="content" id="main-content" data-page={page}>
    <div className="hero" key={page}><AuroraVisual/>
     <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='discover'?'FIND YOUR NEXT FAVORITE':'BEYOND THE DOWNLOAD'}</p>
     <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
-    <p>{page==='download'?'Paste a link. Pick a format. Download.':page==='discover'?'Discover videos, Shorts, channels, playlists, Reels and creators.':'FAQs, privacy, terms, and everything about Vyrnivo.'}</p>
-    {page==='download'&&<div className="flow-steps" aria-hidden="true"><span>01 / Paste link</span><span>02 / Choose quality</span><span>03 / Save</span></div>}
+    <p>{page==='download'?'Paste. Choose. Download.':page==='discover'?'Find videos, Shorts & creators.':'The essentials about Vyrnivo.'}</p>
    </div>
    {page==='download'&&
      <section className="panel surface-interactive" ref={panelRef} aria-label="Video downloader">
