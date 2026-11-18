@@ -1198,3 +1198,10 @@ input,textarea,[contenteditable="true"],.message,.message *,
 @media(prefers-reduced-motion:reduce){
  .cta,.options-btn,.format-tab,.tab,.paste-btn,.status-toggle,.mini-primary,.outline-btn,.icon-action,.round-btn{transition:none!important;transform:none!important}
 }
+
+/* Featured creator project: visually distinct and keyboard accessible. */
+.developer-section .developer-project-link{display:inline-flex;align-items:center;gap:7px;vertical-align:baseline;padding:3px 9px;margin-inline:2px;border:1px solid #c9a6ff90;border-radius:9px;background:linear-gradient(110deg,#b995ff32,#7dc6ff19);color:#f4deff;font-weight:800;text-decoration:none;box-shadow:inset 0 1px 0 #ffffff24;transition:transform 160ms ease,border-color 160ms ease,background-color 160ms ease}
+.developer-section .developer-project-link svg{flex-shrink:0}
+.developer-section .developer-project-link:hover{transform:translateY(-1px);border-color:#e6cfff;background-color:#a17ad43b}
+.developer-section .developer-project-link:focus-visible{outline:2px solid #d8bbff;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.developer-section .developer-project-link{transition:none}.developer-section .developer-project-link:hover{transform:none}}
