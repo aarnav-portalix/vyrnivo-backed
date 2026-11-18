@@ -1314,3 +1314,7 @@ input,textarea,[contenteditable="true"],.message,.message *,
  transition:none!important;animation:none!important;transform:none!important
  }
 }
+
+/* Keep rotating reassurance quiet, readable, and free of animated layout effects. */
+.processing-copy .processing-reassurance{font-size:12px;line-height:1.5;color:#d1c4e7;margin:6px 0 0;max-width:56ch}
+@media(max-width:640px){.processing-copy .processing-reassurance{font-size:11px;line-height:1.45}}

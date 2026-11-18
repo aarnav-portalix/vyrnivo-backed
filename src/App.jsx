@@ -300,11 +300,20 @@ function App(){
   &&Number.isFinite(job?.progressUpdatedAt)
   &&tick-job.progressUpdatedAt>=0&&tick-job.progressUpdatedAt<7000
   ?Math.max(0,Math.ceil(job.estimatedSecondsRemaining)):null;
+ const processingMessages=[
+  'Checking the source and available formats…',
+  'Some sources take longer to respond. Your request is still being checked.',
+  'If the main source is limited, Vyrnivo may try an available backup.',
+  'Still working on your request. Progress will appear when the server reports it.',
+  'Large files and conversions can take extra time. No need to restart yet.',
+  'Thanks for waiting. If the source cannot be reached, we’ll show a clear error.'
+ ];
+ const processingMessage=processingMessages[Math.min(processingMessages.length-1,Math.floor(elapsedProcessing/12))];
  const measuredProgress=Number.isFinite(job?.progressPercent);
  const jobView=<>
      {job?.state==='processing'&&<div className="download-result pending" role="status" aria-live="polite">
        <div className="loading-spinner" aria-hidden="true"/>
-       <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p>
+       <div className="processing-copy"><strong>Preparing your file</strong><p>{job.stage||'Checking source…'}</p><p className="processing-reassurance">{processingMessage}</p>
         <div className="processing-time"><span>Elapsed <b>{formatDuration(elapsedProcessing)}</b></span>
         <span>{Number.isFinite(remainingEstimate)?<>Estimated <b>{formatDuration(remainingEstimate)}</b> remaining</>:measuredProgress?<b>{Math.round(job.progressPercent)}% {job.progressSource==='measured-transfer'?'transferred':'downloaded'}</b>:'Measuring progress…'}</span></div>
        </div>
