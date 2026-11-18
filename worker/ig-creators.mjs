@@ -73,7 +73,8 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
   if(!seen.has(item.id)){seen.add(item.id);items.push(item)}
   if(items.length>=24)break;
  }
- // Search for related creators, not an exact-handle lookup. Favor matches in public titles and handles.\n const matched=relevantIndexedItems(items,query,{max:24});
+ // Search for related creators, not an exact-handle lookup.
+ const matched=relevantIndexedItems(items,query,{max:24});
  const data={items:matched,kind:'creators',query,searchUrl:fallback,indexedSearchUrl,
   notice:matched.length?
    'Matching public index profiles, not live Instagram account verification. Open Instagram to confirm the creator.':
