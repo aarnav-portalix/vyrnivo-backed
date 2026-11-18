@@ -113,6 +113,7 @@ function App(){
  const [busy,setBusy]=useState(false);
  const [formError,setFormError]=useState('');
  const [query,setQuery]=useState('');
+ const [recentSearches,setRecentSearches]=useState(()=>saved('vyrnivo-recent-searches',[]));
  const [searching,setSearching]=useState(false);
  const [results,setResults]=useState([]);
  const [searched,setSearched]=useState('');
@@ -123,6 +124,7 @@ function App(){
  const [tick,setTick]=useState(Date.now());
  const notifyTimer=useRef(null);
  const searchAbort=useRef(null);
+ const searchInputRef=useRef(null);
  const inputRef=useRef(null);
  const panelRef=useRef(null);
  const showToast=(message,type='info')=>{setToast({message,type});clearTimeout(notifyTimer.current);notifyTimer.current=setTimeout(()=>setToast(null),3500)};
@@ -189,6 +191,8 @@ function App(){
  },[page]);
  useEffect(()=>persist('vyrnivo-mode',mode),[mode]);
  useEffect(()=>persist('vyrnivo-quality',quality),[quality]);
+ useEffect(()=>persist('vyrnivo-recent-searches',recentSearches),[recentSearches]);
+ useEffect(()=>{const onKey=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();nav('discover');requestAnimationFrame(()=>searchInputRef.current?.focus())}else if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)){e.preventDefault();nav('discover');requestAnimationFrame(()=>searchInputRef.current?.focus())}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[]);
  useEffect(()=>{try{localStorage.removeItem('dw3lastJob')}catch{}},[]);
  useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t)},[]);
  useEffect(()=>{
@@ -258,6 +262,7 @@ function App(){
  }
  async function runSearch(source,kind,term){
   const q=term.trim();if(q.length<2){setSearchError('Enter at least two characters.');return}
+  setRecentSearches(previous=>[q,...previous.filter(x=>x.toLowerCase()!==q.toLowerCase())].slice(0,5));
   searchAbort.current?.abort();
   const controller=new AbortController();searchAbort.current=controller;
   setSearching(true);setSearchError('');setSearchNote('');setResults([]);setSearched(q);setSearchUrl('');setIndexedSearchUrl('');setSuggestedProfile(null);
@@ -275,7 +280,7 @@ function App(){
    if(e.name!=='AbortError'&&!controller.signal.aborted)setSearchError('Live results are unavailable right now. Search directly on the original platform.');
   }finally{if(searchAbort.current===controller)setSearching(false)}
  }
- function search(e){e?.preventDefault?.();return runSearch(searchSource,searchKind,query)}
+ function search(e){e?.preventDefault?.();const q=query.trim();try{const u=new URL(q);if(u.protocol==='https:'&&/(^|\.)instagram\.com$/.test(u.hostname)&&/^\/(reel|reels|p)\//.test(u.pathname)){setUrl(q);setSelectedResult(null);setJob(null);nav('download');showToast('Instagram link detected. Choose a format.');return}if(u.protocol==='https:'&&/(^|\.)(youtube\.com|youtu\.be)$/.test(u.hostname)&&(/\/watch|\/shorts\/|youtu\.be/.test(u.pathname))){setUrl(q);setSelectedResult(null);setJob(null);nav('download');showToast('YouTube link detected. Choose a format.');return}}catch{}return runSearch(searchSource,searchKind,query)}
  const chooseResult=item=>{
   if(!publicMediaKinds.has(item.kind))return;
   setUrl(item.url||'https://www.youtube.com/watch?v='+item.id);
@@ -325,7 +330,7 @@ function App(){
        <div className="loading-track" aria-label={measuredProgress?'Reported transfer progress '+Math.round(job.progressPercent)+' percent':'Processing, progress unknown'}><span className={measuredProgress?'measured':'indeterminate'} style={measuredProgress?{width:Math.min(100,Math.max(0,job.progressPercent))+'%'}:{}}/></div>
        <p className="processing-note">{Number.isFinite(remainingEstimate)?'Based on the latest transfer report. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
-      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{mode!=='Audio only'&&<p className="quality-delivered">{job.actualQuality?'Actual video resolution: '+job.actualQuality:'Actual video resolution could not be verified.'}</p>}{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
+      {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{mode!=='Audio only'&&<p className="quality-delivered">{job.actualQuality?'Actual video resolution: '+job.actualQuality:'Actual video resolution could not be verified.'}</p>}{mode==='Audio only'&&job.downloadUrl&&<div className="ready-audio-preview"><span>Listen before saving</span><audio controls preload="none" src={job.downloadUrl} aria-label="Preview completed audio"/></div>}{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
      {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {mode!=='Audio only'&&isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&!/rate.limit|access.denied|verification|required|unavailable through the backup|source may restrict|timed out/i.test(String(job.error||''))&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
@@ -397,9 +402,10 @@ function App(){
     <div className="discover-filters" role="group" aria-label="Result type">{discoverTypes[searchSource].map(([value,label])=><button key={value} type="button" aria-pressed={searchKind===value} className={searchKind===value?'active':''} onClick={()=>switchSearchKind(value)}>{label}</button>)}</div>
     <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
      <form className="search-panel" onSubmit={search}>
-      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>{setQuery(e.target.value);resetSearchView()}} placeholder={isInstagram?(searchKind==='creators'?'Find creators by name or topic…':'Search Reels, topics, hashtags…'):(searchKind==='channels'?'Search YouTube channels…':searchKind==='shorts'?'Search Shorts…':'Search videos, channels and music…')} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
+      <div className="search-input"><Icon name="search"/><input ref={searchInputRef} type="search" value={query} onChange={e=>{setQuery(e.target.value);resetSearchView()}} placeholder={isInstagram?(searchKind==='creators'?'Find creators by name or topic…':'Search Reels, topics, hashtags…'):(searchKind==='channels'?'Search YouTube channels…':searchKind==='shorts'?'Search Shorts…':'Search videos, channels and music…')} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
       <button type="submit" className="cta" disabled={searching}>{searching?'Searching…':'Search'} <Icon name="arrow" size={18}/></button>
      </form>
+     {!searched&&recentSearches.length>0&&<div className="recent-searches" aria-label="Recent searches"><span>Recent</span>{recentSearches.slice(0,3).map(q=><button key={q} type="button" onClick={()=>{setQuery(q);void runSearch(searchSource,searchKind,q)}}>{q}</button>)}<button type="button" className="recent-clear" onClick={()=>setRecentSearches([])} aria-label="Clear recent searches">Clear</button></div>}
      <div className="native-search-bar">
       <span><Icon name="shield-check" size={14}/> Public results may differ</span>
       <a href={nativeDiscoverUrl(searchSource,searchKind,query)} target="_blank" rel="noopener noreferrer">Search on {isInstagram?'Instagram':'YouTube'} <Icon name="external" size={14}/></a>
