@@ -48,7 +48,7 @@ export function parseExtractorProgress(output){
 export function parseExtractorTelemetry(output){
  const lines=String(output||'').split(/\r?\n/).filter(line=>line.startsWith('download:'));
  const last=lines.at(-1)||'';
- const [percentText,etaText]=last.slice('download:'.length).split('|');
+ const [percentText,etaText,speedText,receivedText,totalText]=last.slice('download:'.length).split('|');
  const percentMatch=String(percentText||'').match(/(\d+(?:\.\d+)?)%/);
  const number=percentMatch?Number(percentMatch[1]):null;
  const percent=Number.isFinite(number)&&number>=0&&number<=100?number:null;
@@ -61,5 +61,9 @@ export function parseExtractorTelemetry(output){
   etaSeconds=Math.ceil(Number.parseFloat(value));
  }
  if(!Number.isFinite(etaSeconds)||etaSeconds>7200||etaSeconds<0)etaSeconds=null;
- return {percent,etaSeconds};
+ const parsedPositive=value=>{const s=String(value??'').trim();if(!/^\\d+(?:\\.\\d+)?$/.test(s))return null;const n=Number(s);return Number.isFinite(n)&&n>=0&&n<=1024*1024*1024?Math.round(n):null;};
+ const speedBytesPerSecond=parsedPositive(speedText);
+ const transferredBytes=parsedPositive(receivedText);
+ const totalBytes=parsedPositive(totalText);
+ return {percent,etaSeconds,speedBytesPerSecond,transferredBytes,totalBytes};
 }
