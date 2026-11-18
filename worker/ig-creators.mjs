@@ -42,7 +42,7 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
  const old=cache.get(key);
  if(old&&now()-old.at<(old.data.items.length?300000:60000))return Response.json(old.data);
  const u=new URL('https://www.bing.com/search');
- u.searchParams.set('q','site:instagram.com/ '+query);
+ u.searchParams.set('q','site:instagram.com/ '+query+' instagram creator');
  u.searchParams.set('format','rss');
  const indexedSearchUrl='https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/ '+query);
  const fallback=nativeInstagramSearchUrl(query);
@@ -55,7 +55,7 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
   tasks.push((async()=>{
    const address=new URL('/search',base);
    if(address.protocol!=='https:')return [];
-   address.searchParams.set('q','site:instagram.com/ '+query);
+   address.searchParams.set('q','site:instagram.com/ '+query+' creator');
    address.searchParams.set('format','json');
    const response=await fetchImpl(address.href,{redirect:'error',signal:AbortSignal.timeout(9000)});
    if(!response.ok)return [];
@@ -78,13 +78,11 @@ export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.
  const handleQuery=query.replace(/^@/,'');
  const suggestion=/^[A-Za-z0-9._]{2,30}$/.test(handleQuery)?
    canonicalInstagramProfile('https://www.instagram.com/'+handleQuery+'/'):null;
- const matched=relevantIndexedItems(items,query,{max:24});
- const suggestedProfile=suggestion&&!matched.some(item=>item.id===suggestion.id)?
-   {...suggestion,title:'@'+suggestion.username,source:'Unverified handle suggestion',verified:false}:null;
- const data={items:matched,kind:'creators',query,searchUrl:fallback,indexedSearchUrl,suggestedProfile,
+ // Search for related creators, not an exact-handle lookup. Favor matches in public titles and handles.\n const matched=relevantIndexedItems(items,query,{max:24});
+ const data={items:matched,kind:'creators',query,searchUrl:fallback,indexedSearchUrl,
   notice:matched.length?
    'Matching public index profiles, not live Instagram account verification. Open Instagram to confirm the creator.':
-   'No trustworthy creator matches were returned by public indexes. Search on Instagram or try an exact @username.'};
+   'No related creator profiles were found in public indexes. Try a broader topic or search on Instagram.'};
  if(cache.size>120)cache.clear();cache.set(key,{data,at:now()});
  return Response.json(data,{headers:{'cache-control':'no-store'}});
 }
