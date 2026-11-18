@@ -1318,3 +1318,10 @@ input,textarea,[contenteditable="true"],.message,.message *,
 /* Keep rotating reassurance quiet, readable, and free of animated layout effects. */
 .processing-copy .processing-reassurance{font-size:12px;line-height:1.5;color:#d1c4e7;margin:6px 0 0;max-width:56ch}
 @media(max-width:640px){.processing-copy .processing-reassurance{font-size:11px;line-height:1.45}}
+
+/* Compact reward for completed downloads: single entrance, no permanent effects. */
+@keyframes vyrnivo-ready-pop{0%{opacity:.6;transform:translate3d(0,5px,0) scale(.985)}100%{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+.download-result.ready{animation:vyrnivo-ready-pop 230ms cubic-bezier(.2,.8,.3,1) both}
+.download-result.ready .ready-heading svg{transition:transform 170ms ease}
+@media(hover:hover) and (pointer:fine){.download-result.ready .ready-actions .cta:hover svg{transform:translate3d(2px,0,0)}.download-result.ready .ready-actions .cta svg{transition:transform 170ms ease}}
+@media(prefers-reduced-motion:reduce){.download-result.ready{animation:none!important}.download-result.ready .ready-heading svg,.download-result.ready .ready-actions .cta svg{transition:none!important;transform:none!important}}
