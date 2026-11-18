@@ -392,16 +392,16 @@ function App(){
    </section>}
    {page==='about'&&<LegalCenter selected={legalSection} onSelect={openLegal}/>} 
    {page==='discover'&&<section className="discover-hub" aria-label="Search videos and public Reels">
-     <div className="discover-intro"><strong>Find videos, Shorts & creators</strong><p>Search YouTube listings and publicly indexed Instagram Reels or profiles. Only matching source links appear; open the original platform for complete live results.</p></div>
+     <div className="discover-intro"><strong>Find your next video</strong><p>Explore YouTube and public Instagram results.</p></div>
      <div className="search-mode-tabs" role="group" aria-label="Search platform"><button type="button" className={searchSource==='youtube'?'active':''} aria-pressed={searchSource==='youtube'} onClick={()=>switchSearchSource('youtube')}><Icon name="youtube" size={16}/> YouTube</button><button type="button" className={searchSource==='instagram'?'active':''} aria-pressed={searchSource==='instagram'} onClick={()=>switchSearchSource('instagram')}><Icon name="instagram" size={16}/> Instagram</button></div>
     <div className="discover-filters" role="group" aria-label="Result type">{discoverTypes[searchSource].map(([value,label])=><button key={value} type="button" aria-pressed={searchKind===value} className={searchKind===value?'active':''} onClick={()=>switchSearchKind(value)}>{label}</button>)}</div>
     <section className="discovery" aria-label={isInstagram?'Instagram search':'YouTube search'}>
      <form className="search-panel" onSubmit={search}>
-      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>{setQuery(e.target.value);resetSearchView()}} placeholder={isInstagram?(searchKind==='creators'?'Search creator names or @handles…':'Search Reels, topics, hashtags…'):(searchKind==='channels'?'Search YouTube channels…':searchKind==='shorts'?'Search Shorts…':'Search videos, channels and music…')} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
+      <div className="search-input"><Icon name="search"/><input type="search" value={query} onChange={e=>{setQuery(e.target.value);resetSearchView()}} placeholder={isInstagram?(searchKind==='creators'?'Find creators by name or topic…':'Search Reels, topics, hashtags…'):(searchKind==='channels'?'Search YouTube channels…':searchKind==='shorts'?'Search Shorts…':'Search videos, channels and music…')} aria-label={isInstagram?'Search Instagram':'Search YouTube'}/></div>
       <button type="submit" className="cta" disabled={searching}>{searching?'Searching…':'Search'} <Icon name="arrow" size={18}/></button>
      </form>
      <div className="native-search-bar">
-      <span><Icon name="shield-check" size={14}/> Results can differ from a personalized feed</span>
+      <span><Icon name="shield-check" size={14}/> Public results may differ</span>
       <a href={nativeDiscoverUrl(searchSource,searchKind,query)} target="_blank" rel="noopener noreferrer">Search on {isInstagram?'Instagram':'YouTube'} <Icon name="external" size={14}/></a>
      </div>
      {searchError&&<div className="message error" role="alert">{searchError}</div>}
