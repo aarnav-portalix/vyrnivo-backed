@@ -44,15 +44,89 @@ function SkyHop({active}){
  return <div className="vyron-play"><div className="vyron-score">Height <b>{score}</b><span>Best {best}</span></div><div className="vyron-canvas-wrap"><canvas ref={canvas} width={W} height={H} aria-label="Sky Hop: move left and right to land on platforms"/>{!started&&!over&&<div className="vyron-overlay"><span className="vyron-emoji">01 / HOP</span><strong>Sky Hop</strong><span>Keep climbing. Don't fall!</span><button type="button" onClick={()=>{state.current.vy=-9.7;setStarted(true)}}>Start hopping →</button></div>}{over&&<div className="vyron-overlay"><strong>Nice hop!</strong><span>Height: {score}</span><button type="button" onClick={()=>setRound(n=>n+1)}>Try again</button></div>}</div><div className="vyron-touch"><button type="button" aria-label="Move left" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);touch.current=-1}} onPointerUp={()=>touch.current=0} onPointerCancel={()=>touch.current=0}>◀</button><span>← → or A / D</span><button type="button" aria-label="Move right" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);touch.current=1}} onPointerUp={()=>touch.current=0} onPointerCancel={()=>touch.current=0}>▶</button></div></div>
 }
 function PerfectStack({active}){
- const canvas=useRef(null),state=useRef(null),[score,setScore]=useState(0),[best,setBest]=useState(()=>getBest('stack')),[over,setOver]=useState(false),[round,setRound]=useState(0),[started,setStarted]=useState(false),[perfects,setPerfects]=useState(0);
- useEffect(()=>{state.current={blocks:[{x:85,y:395,w:190}],moving:{x:0,y:359,w:190},direction:1,speed:2.5,score:0,over:false,last:0,particles:[],flash:0};setScore(0);setOver(false);setStarted(false);setPerfects(0)},[round]);
- const place=()=>{const s=state.current;if(!active||!started||!s||s.over)return;const prev=s.blocks[s.blocks.length-1],m=s.moving;const left=Math.max(m.x,prev.x),right=Math.min(m.x+m.w,prev.x+prev.w),width=right-left;if(width<=3){s.over=true;setOver(true);return}const perfect=Math.abs(m.x-prev.x)<7;if(perfect){s.flash=30;setPerfects(n=>n+1);burst(s,prev.x+prev.w/2,m.y+16,'#f5d1ff',18)}else{setPerfects(0);burst(s,left+width/2,m.y+15,'#b4d5ff',6)}const b={x:perfect?prev.x:left,y:m.y,w:perfect?prev.w:width};s.blocks.push(b);s.score++;setScore(s.score);if(s.score>getBest('stack')){saveBest('stack',s.score);setBest(s.score)}if(b.y<170){const shift=36;s.blocks.forEach(v=>v.y+=shift)}s.moving={x:0,y:b.y-36,w:b.w};s.direction=1;s.speed=Math.min(7,2.5+s.score*.22)};
- useEffect(()=>{const key=e=>{if(active&&(e.code==='Space'||e.code==='Enter')&&!['BUTTON','INPUT','TEXTAREA'].includes(document.activeElement?.tagName)){e.preventDefault();place()}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[active,round]);
- useEffect(()=>{if(!active)return;const ctx=canvas.current?.getContext('2d');if(!ctx)return;let raf=0;const draw=t=>{const s=state.current;if(!s)return;const dt=Math.min(2,(t-(s.last||t))/16.67);s.last=t;if(started&&!s.over){s.moving.x+=s.direction*s.speed*dt;if(s.moving.x<0){s.moving.x=0;s.direction=1}if(s.moving.x+s.moving.w>W){s.moving.x=W-s.moving.w;s.direction=-1}}
- ctx.fillStyle='#eee9df';ctx.fillRect(0,0,W,H);
- ctx.strokeStyle='#d5cfc4';for(let x=0;x<W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
- s.blocks.forEach((b,i)=>{rounded(ctx,b.x,b.y+5,b.w,31,3,'#b7b0a3');rounded(ctx,b.x,b.y,b.w,30,3,['#cf9d82','#7bafa5','#dfba77','#9e9abf'][i%4]);rounded(ctx,b.x+3,b.y+3,Math.max(0,b.w-6),4,2,'#ffffff55')});if(!s.over){rounded(ctx,s.moving.x,s.moving.y,s.moving.w,30,3,'#668c86')}if(s.flash>0){ctx.fillStyle='rgba(255,255,255,'+(s.flash/220)+')';ctx.fillRect(0,0,W,H);s.flash-=dt}particles(ctx,s,dt);raf=requestAnimationFrame(draw)};raf=requestAnimationFrame(draw);return()=>cancelAnimationFrame(raf)},[active,round,started]);
- return <div className="vyron-play"><div className="vyron-score">Blocks <b>{score}</b><span>{perfects>1?'✨ '+perfects+' perfects · ':''}Best {best}</span></div><div className="vyron-canvas-wrap"><canvas ref={canvas} width={W} height={H} onPointerDown={place} aria-label="Perfect Stack: tap the canvas to place the moving block"/>{!started&&!over&&<div className="vyron-overlay"><span className="vyron-emoji">02 / STACK</span><strong>Perfect Stack</strong><span>Tap at the right moment.</span><button type="button" onClick={()=>setStarted(true)}>Start stacking →</button></div>}{over&&<div className="vyron-overlay"><strong>Stack complete!</strong><span>{score} blocks stacked</span><button type="button" onClick={()=>setRound(n=>n+1)}>Try again</button></div>}</div><p className="vyron-instruction">Tap the game, click, or press Space to stack.</p></div>
+ const canvas=useRef(null),state=useRef(null),placeRef=useRef(null);
+ const [score,setScore]=useState(0),[best,setBest]=useState(()=>getBest('stack')),[over,setOver]=useState(false),[round,setRound]=useState(0),[started,setStarted]=useState(false),[streak,setStreak]=useState(0);
+ useEffect(()=>{
+  state.current={blocks:[{x:85,y:395,w:190}],moving:{x:0,y:359,w:190},direction:1,speed:3.2,score:0,streak:0,over:false,last:0,particles:[],flash:0,offcuts:[],camera:0,shake:0};
+  setScore(0);setOver(false);setStarted(false);setStreak(0)
+ },[round]);
+ const place=()=>{
+  const s=state.current;if(!active||!started||!s||s.over)return;
+  const prev=s.blocks[s.blocks.length-1],m=s.moving;
+  const tolerance=Math.max(2.5,6.5-s.score*.17);
+  const perfect=Math.abs(m.x-prev.x)<=tolerance;
+  const left=Math.max(m.x,prev.x),right=Math.min(m.x+m.w,prev.x+prev.w);
+  const width=perfect?prev.w:right-left;
+  if(width<8){s.over=true;s.shake=10;setOver(true);burst(s,prev.x+prev.w/2,m.y+15,'#bc806c',14);return}
+  if(perfect){s.streak++;setStreak(s.streak);s.flash=12;burst(s,prev.x+prev.w/2,m.y+16,'#f2d8a4',12)}
+  else{
+   s.streak=0;setStreak(0);
+   if(m.x<prev.x)s.offcuts.push({x:m.x,y:m.y,w:left-m.x,vy:-1.2});
+   else s.offcuts.push({x:right,y:m.y,w:m.x+m.w-right,vy:-1.2});
+   burst(s,left+width/2,m.y+15,'#9ab6a5',5)
+  }
+  const block={x:perfect?prev.x:left,y:m.y,w:width};
+  s.blocks.push(block);s.score++;setScore(s.score);
+  if(s.score>getBest('stack')){saveBest('stack',s.score);setBest(s.score)}
+  if(block.y<172){s.camera+=36}
+  const fromRight=s.score%2===0;
+  s.moving={x:fromRight?W-width:0,y:block.y-36,w:width};
+  s.direction=fromRight?-1:1;
+  s.speed=Math.min(11.5,3.2+s.score*.32);
+ };
+ placeRef.current=place;
+ useEffect(()=>{
+  const key=e=>{
+   if(!active||e.repeat||!['Space','Enter'].includes(e.code)||['BUTTON','INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
+   e.preventDefault();placeRef.current?.()
+  };
+  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
+ },[active]);
+ useEffect(()=>{
+  if(!active)return;
+  const ctx=canvas.current?.getContext('2d');if(!ctx)return;let raf=0;
+  const draw=t=>{
+   const s=state.current;if(!s)return;
+   const dt=Math.min(2,(t-(s.last||t))/16.67);s.last=t;
+   if(started&&!s.over){
+    const phase=s.score>=7?Math.sin(t*.004+s.score)*(.13+Math.min(.25,s.score*.012)):0;
+    s.moving.x+=s.direction*s.speed*dt*(1+phase);
+    if(s.moving.x<=0){s.moving.x=0;s.direction=1}
+    if(s.moving.x+s.moving.w>=W){s.moving.x=W-s.moving.w;s.direction=-1}
+   }
+   s.offcuts=s.offcuts.filter(p=>p.y<H+70);
+   for(const p of s.offcuts){p.y+=(p.vy+=.42*dt)*dt;p.x+=.5*dt}
+   ctx.fillStyle='#eee9df';ctx.fillRect(0,0,W,H);
+   ctx.strokeStyle='#d5cfc4';ctx.lineWidth=1;
+   for(let x=0;x<W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+   ctx.save();
+   if(s.shake>0){ctx.translate(Math.sin(t*.09)*s.shake*.3,0);s.shake=Math.max(0,s.shake-dt)}
+   ctx.translate(0,s.camera);
+   const palette=['#cf9d82','#7bafa5','#dfba77','#9e9abf'];
+   s.blocks.forEach((block,i)=>{
+    if(block.y+s.camera>H+40||block.y+s.camera< -50)return;
+    rounded(ctx,block.x,block.y+5,block.w,31,3,'#b7b0a3');
+    rounded(ctx,block.x,block.y,block.w,30,3,palette[i%4]);
+    if(block.w>12)rounded(ctx,block.x+3,block.y+3,block.w-6,4,2,'#ffffff55')
+   });
+   for(const p of s.offcuts)if(p.w>0)rounded(ctx,p.x,p.y,p.w,30,2,'#a4aaa2');
+   if(!s.over){rounded(ctx,s.moving.x,s.moving.y,s.moving.w,30,3,'#668c86');if(s.moving.w>12)rounded(ctx,s.moving.x+3,s.moving.y+3,s.moving.w-6,4,2,'#ffffff55')}
+   particles(ctx,s,dt);
+   ctx.restore();
+   if(s.flash>0){ctx.fillStyle='rgba(255,255,255,'+(s.flash/180)+')';ctx.fillRect(0,0,W,H);s.flash-=dt}
+   raf=requestAnimationFrame(draw)
+  };
+  raf=requestAnimationFrame(draw);return()=>cancelAnimationFrame(raf)
+ },[active,round,started]);
+ return <div className="vyron-play">
+  <div className="vyron-score">Blocks <b>{score}</b><span>{streak>=2?'PERFECT ×'+streak+' · ':''}Best {best}</span></div>
+  <div className="vyron-canvas-wrap">
+   <canvas ref={canvas} width={W} height={H} onPointerDown={e=>{if(e.pointerType==='mouse'&&e.button!==0)return;placeRef.current?.()}} aria-label="Perfect Stack: tap the game to place the moving block"/>
+   {!started&&!over&&<div className="vyron-overlay"><span className="vyron-emoji">02 / STACK</span><strong>Perfect Stack</strong><span>One tap per block. The speed rises as you climb.</span><button type="button" onClick={()=>setStarted(true)}>Start stacking →</button></div>}
+   {over&&<div className="vyron-overlay"><strong>Tower finished</strong><span>{score} blocks stacked · Best {best}</span><button type="button" onClick={()=>setRound(n=>n+1)}>Try again</button></div>}
+  </div>
+  <p className="vyron-instruction">Tap anywhere on the game · Space on desktop · Perfect hits keep your width</p>
+ </div>
 }
 export default function Vyron({processing=false}){
  const [open,setOpen]=useState(true),[game,setGame]=useState('hop');
