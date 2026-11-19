@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import './style.css';
 import LegalCenter,{legalSections} from './Legal.jsx';
 import HumanCheck from './HumanCheck.jsx';
+import Vyron from './Vyron.jsx';
 
 const icons={
  download:<><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></>,
@@ -392,6 +393,7 @@ function App(){
       <div className="discover-teaser"><span>Looking for something to download? Search videos and Reels in Discover.</span><button type="button" onClick={()=>nav('discover')}><Icon name="search" size={15}/> Open Discover <Icon name="arrow" size={15}/></button></div>
      </div>
      {jobView}
+     {job?.state==='processing'&&<Vyron processing={job.state==='processing'}/>}
     </section>
     }
 
