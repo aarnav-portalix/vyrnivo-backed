@@ -1495,3 +1495,6 @@ input,textarea,[contenteditable="true"],.message,.message *,
  .tabs .tab svg{width:18px!important;height:18px!important}
  .tabs .tab span{font-size:8px!important}
 }
+
+/* Voluntary project support */
+.support-section{display:flex;align-items:center;gap:19px;margin:28px auto 8px;padding:22px;border:1px solid #ffffff25;border-radius:19px;background:#1b1d27;color:#f1f1f4}.support-mark{width:54px;height:54px;flex:none;display:grid;place-items:center;background:#302b30;border-radius:13px;font-size:27px}.support-section>div:nth-child(2){flex:1;min-width:0}.support-eyebrow{font-size:10px;letter-spacing:.15em;font-weight:850;color:#b5cdb9}.support-section h2{font-size:21px;letter-spacing:-.04em;margin:6px 0}.support-section p{font-size:12px;color:#c3c5ca;line-height:1.6;margin:4px 0}.support-section .support-disclaimer{font-size:10px;color:#a3a8ae}.support-coming{flex:none;border:1px solid #b4c7b578;border-radius:9px;padding:12px;color:#d6e6d9;font-size:11px;font-weight:750;text-align:center}@media(max-width:680px){.support-section{flex-wrap:wrap;gap:12px;padding:17px}.support-mark{width:44px;height:44px;font-size:22px}.support-section>div:nth-child(2){flex-basis:calc(100% - 60px)}.support-coming{width:100%}}
