@@ -38,6 +38,11 @@ const cache=new Map();
 export async function searchInstagramCreators(request,{fetchImpl=fetch,now=Date.now,base=null}={}){
  const query=(new URL(request.url).searchParams.get('q')||'').trim();
  if(query.length<2||query.length>100)return Response.json({error:'Enter 2–100 characters.'},{status:400});
+ const handle=query.match(/^@([A-Za-z0-9._]{1,30})$/)?.[1];
+ const direct=handle?canonicalInstagramProfile('https://www.instagram.com/'+handle+'/'):null;
+ if(direct)return Response.json({items:[{...direct,title:'@'+direct.username,creator:'@'+direct.username,source:'Username entered by visitor',verified:false,matchType:'direct-username'}],kind:'creators',query,
+  searchUrl:nativeInstagramSearchUrl(query),indexedSearchUrl:'',
+  notice:'This is a link constructed from the username you entered, not a verified or live account lookup. Open Instagram to check whether the account exists.'},{headers:{'cache-control':'no-store'}});
  const key=query.toLowerCase()+'|'+String(base||'');
  const old=cache.get(key);
  if(old&&now()-old.at<(old.data.items.length?300000:60000))return Response.json(old.data);
