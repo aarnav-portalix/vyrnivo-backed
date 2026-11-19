@@ -34,7 +34,7 @@ export function fallbackPayload(input){
  return {url:input.url,format:input.mode==='Audio only'?'audio':'video',quality,outputFormat:input.mode==='Audio only'?'mp3':'mp4'};
 }
 
-export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgress=()=>{}}={}){
+export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgress=()=>{},transferIdleMs=25000,transferMaxMs=240000}={}){
  const payload=fallbackPayload(input);
  const extension=payload.outputFormat;
  const destination=join(dir,'media.'+extension);
@@ -81,8 +81,8 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  let transferTimedOut=false;
  let idleTimer;
  const idleAbort=()=>{transferTimedOut=true;transferController.abort()};
- const resetIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleAbort,25000);idleTimer.unref?.()};
- const absoluteTimer=setTimeout(idleAbort,240000);
+ const resetIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleAbort,transferIdleMs);idleTimer.unref?.()};
+ const absoluteTimer=setTimeout(idleAbort,transferMaxMs);
  absoluteTimer.unref?.();
  const limiter=new Transform({transform(chunk,encoding,callback){
   bytes+=chunk.length;
