@@ -6,6 +6,7 @@ COPY src ./src
 COPY worker ./worker
 COPY dist/index.html ./dist/index.html
 COPY build.cjs ./
+COPY google820cceee3edb5964.html ./
 RUN node build.cjs
 FROM node:22-bookworm-slim
 WORKDIR /app
