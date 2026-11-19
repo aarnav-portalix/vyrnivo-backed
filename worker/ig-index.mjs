@@ -24,13 +24,15 @@ export async function indexedInstagram(request,{fetcher=fetch,now=Date.now}={}){
  if(q.length<2||q.length>100)return Response.json({error:'Enter a topic between 2 and 100 characters.'},{status:400});
  const key=q.toLowerCase();
  const old=cache.get(key);if(old&&now()-old.time<120000)return Response.json(old.data);
- const terms=[q,'"'+q+'"'];
- const queries=[...new Set(terms.map(term=>'site:instagram.com/reel/ '+term))];
+ // Search hashtags as hashtags as well as words; Bing's index treats the two differently.
+ const normalized=q.replace(/^#/,'').trim();
+ const terms=[normalized,'"'+normalized+'"',...(q.startsWith('#')?['#'+normalized]:[])];
+ const queries=[...new Set(terms.filter(Boolean).map(term=>'site:instagram.com/reel/ '+term))];
  const responses=await Promise.allSettled(queries.map(async term=>{
   const u=new URL('https://www.bing.com/search');
   u.searchParams.set('q',term);
   u.searchParams.set('format','rss');
-  const r=await fetcher(u.href,{redirect:'manual',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(6500)});
+  const r=await fetcher(u.href,{redirect:'error',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(6500)});
   if(!r.ok)return [];
   return parseIndexRss((await r.text()).slice(0,1_500_000));
  }));
