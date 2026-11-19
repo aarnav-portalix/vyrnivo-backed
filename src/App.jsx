@@ -393,9 +393,10 @@ function App(){
       <div className="discover-teaser"><span>Looking for something to download? Search videos and Reels in Discover.</span><button type="button" onClick={()=>nav('discover')}><Icon name="search" size={15}/> Open Discover <Icon name="arrow" size={15}/></button></div>
      </div>
      {jobView}
-     {job?.state==='processing'&&<Vyron processing={job.state==='processing'}/>}
+
     </section>
     }
+    {page==='download'&&<Vyron processing={true}/>}
 
    {page==='about'&&<section className="about-intro"><h2>All the extras, neatly organized.</h2><p>Frequently asked questions, policies, and everything else about Vyrnivo.</p><div className="about-notes"><span>Free to use</span><span>10-minute file links</span><span>No account needed</span></div></section>}
    {page==='about'&&<section className="developer-section" id="developer" aria-labelledby="developer-title"><div className="developer-header"><span className="developer-eyebrow">THE PERSON BEHIND THE PROJECT</span><h2 id="developer-title">About the Developer</h2></div><p>Aarnav Fbav12 is the creator and developer behind Vyrnivo. A creative, ambitious builder with a strong interest in web development, interactive design, and digital experiences, he brings ideas to life through thoughtful interfaces and hands-on experimentation.</p><p>From responsive layouts and smooth interactions to practical tools and creative projects, his work reflects curiosity, persistence, and an eye for detail. Vyrnivo is part of his ongoing journey to build useful experiences that feel distinctive, intuitive, and enjoyable to use.</p><p>He also created <a className="developer-project-link" href="https://nexusdeck-two.vercel.app" target="_blank" rel="noopener noreferrer" aria-label="Play Nexus Deck arcade game (opens in new tab)">Nexus Deck <Icon name="external" size={14}/></a>, a small arcade game that showcases his interest in playful, interactive projects.</p><p className="developer-footnote">Independent developer · Creative projects · Always improving.</p></section>}
