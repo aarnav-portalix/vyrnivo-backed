@@ -32,10 +32,11 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchSear
  const tasks=[searchIndex(request)];
  if(base)tasks.unshift(searchSearx(request,base));
  const results=await Promise.allSettled(tasks);
- const seen=new Set(),items=[];let topic=null,sourceURL=null;
+ const seen=new Set(),items=[];let topic=null,sourceURL=null,availableSources=0;
  for(const outcome of results){
   if(outcome.status!=='fulfilled'||!outcome.value?.ok)continue;
   let data;try{data=await outcome.value.json()}catch{continue}
+  availableSources++;
   if(data.topic&&!topic){topic=data.topic;sourceURL=data.sourceURL}
   for(const item of data.items||[]){
    const v=canonical(item);
@@ -44,11 +45,11 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchSear
   }
  }
  const matched=relevantIndexedItems(items,query,{max:18});
- const data={items:matched,kind:'reels',query,topic,sourceURL,searchUrl,
+ const data={items:matched,kind:'reels',query,topic,sourceURL,searchUrl,diagnostics:{indexedCandidates:items.length,matched:matched.length,availableSources},
   indexedSearchUrl:'https://www.google.com/search?q='+encodeURIComponent('site:instagram.com/reel/ '+query),
   matchType:'public-index',notice:matched.length?
    'Matching publicly indexed Reel links. These are not Instagram live search results; open a Reel to confirm it is still available.':
-   'No trustworthy matching Reels were returned by public indexes. Open this search on Instagram for live results.'};
+   items.length?'Public search returned '+items.length+' Reel link(s), but none could be matched reliably to your keywords. Try a shorter topic or open Instagram search.':availableSources?'Public indexes returned no Reel links for this search. Try a different phrase or open Instagram search.':'Public search providers could not be reached. Open Instagram search for live results.'};
  if(cache.size>100)cache.clear();
  cache.set(key,{time:now(),data});
  return Response.json(data,{headers:{'cache-control':'no-store'}});

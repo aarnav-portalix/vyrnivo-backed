@@ -27,14 +27,20 @@ export async function indexedInstagram(request,{fetcher=fetch,now=Date.now}={}){
  // Search hashtags as hashtags as well as words; Bing's index treats the two differently.
  const normalized=q.replace(/^#/,'').trim();
  const terms=[normalized,'"'+normalized+'"',...(q.startsWith('#')?['#'+normalized]:[])];
- const queries=[...new Set(terms.filter(Boolean).map(term=>'site:instagram.com/reel/ '+term))];
+ const queries=[...new Set([
+  ...terms.filter(Boolean).map(term=>'site:instagram.com/reel/ '+term),
+  'instagram reel '+normalized,
+  'site:instagram.com/reels/ '+normalized
+ ])].slice(0,5);
  const responses=await Promise.allSettled(queries.map(async term=>{
   const u=new URL('https://www.bing.com/search');
   u.searchParams.set('q',term);
   u.searchParams.set('format','rss');
   const r=await fetcher(u.href,{redirect:'error',headers:{Accept:'application/rss+xml,application/xml'},signal:AbortSignal.timeout(6500)});
   if(!r.ok)return [];
-  return parseIndexRss((await r.text()).slice(0,1_500_000));
+  const xml=(await r.text()).slice(0,1_500_000);
+  if(!xml.includes('<rss')&&!xml.includes('<item'))return [];
+  return parseIndexRss(xml);
  }));
  const seen=new Set(),items=[];
  for(const response of responses){
