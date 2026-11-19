@@ -76,7 +76,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  const youtubeInput=/^(?:youtube\.com|m\.youtube\.com|music\.youtube\.com|youtu\.be|youtube-nocookie\.com)$/.test(new URL(input.url).hostname.replace(/^www\./,''));
  const useBackupFirst=youtubeInput&&now()<youtubeRetryAt&&canTryFallback(input);
  const tryOwned=async()=>{
-  j.stage='Connecting to Vyrnivo engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  j.stage='Connecting to Vyrnivo engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;j.progressUpdatedAt=null;j.speedBytesPerSecond=null;j.transferredBytes=null;j.totalBytes=null;
   const result=await downloadViaOwnedEngine(input,j.dir,{
    config:ownedEngineConfig,fetchImpl,onProgress:p=>Object.assign(j,p),now
   });
@@ -87,7 +87,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  };
 
  const backup=async()=>{
-  j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  j.stage='Connecting to backup engine';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;j.progressUpdatedAt=null;j.speedBytesPerSecond=null;j.transferredBytes=null;j.totalBytes=null;
   const downloaded=await downloadViaFreeProvider(input,j.dir,{fetchImpl,onProgress:p=>Object.assign(j,p)});
   const result=input.mode==='Audio only'&&(['M4A','WAV'].includes(input.container)||input.audioBitrate!=='Source'&&input.container==='MP3')
    ?await convertAudio(downloaded,j.dir,input.container,{audioBitrate:input.audioBitrate,onProgress:p=>Object.assign(j,p)})
@@ -133,6 +133,14 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   if(['SOURCE_RATE_LIMITED','SOURCE_ACCESS_DENIED','SOURCE_VERIFICATION_REQUIRED','FREE_PROVIDER_MEDIA_UNAVAILABLE'].includes(j.failureCode)){
    recentSourceFailures.set(input.url,{code:j.failureCode,until:now()+90000});
   }
+  // A failed source/transfer must not leave stale speed or percentages visible.
+  j.progressPercent=null;
+  j.estimatedSecondsRemaining=null;
+  j.progressSource=null;
+  j.progressUpdatedAt=null;
+  j.speedBytesPerSecond=null;
+  j.transferredBytes=null;
+  j.totalBytes=null;
   j.state='failed';j.stage='Could not finish';
   j.error=e?.code?.startsWith('FREE_PROVIDER_')?
    (e.code==='FREE_PROVIDER_RATE_LIMITED'?'The backup service is rate-limited right now. Please try again later.':e.code==='FREE_PROVIDER_MEDIA_UNAVAILABLE'?'This audio or video is unavailable through the backup service. The source may restrict downloads.':e.code==='FREE_PROVIDER_FORMAT_UNSUPPORTED'?'The backup does not support this file format. Choose another audio format.':e.code==='FREE_PROVIDER_TOO_LARGE'?'This media exceeds the 200 MB limit.':e.code==='FREE_PROVIDER_BUSY'?'The backup is still preparing the file. Please try again shortly.':e.code==='FREE_PROVIDER_TIMEOUT'?'The backup server did not respond in time. Please try another public link later.':'The backup download failed or was interrupted. Please try again later.'):
