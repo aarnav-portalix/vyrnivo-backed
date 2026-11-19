@@ -27,12 +27,13 @@ const icons={
  engine:<><circle cx="12" cy="12" r="9"/><path d="m10 8 5 4-5 4z"/></>,
  about:<><circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10h.01"/></>,
  users:<><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></>,
+ pro:<><path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></>,
  activity:<><path d="M2 12h4l3-7 6 14 3-7h4"/></>
 };
 function Icon({name,size=19,...props}){return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{icons[name]}</svg>;}
 function saved(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
 function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
-const pages=['download','discover','vyron','about'];
+const pages=['download','discover','vyron','pro','about'];
 const faqs=[
  ['How do I download?','Paste a public link, choose a format, and press Download. Save or share the temporary file link when ready.'],
  ['Do YouTube downloads work?','Yes, eligible public videos can work. Vyrnivo may automatically try a backup engine if the main one is unavailable. Some videos still fail because of access restrictions or rate limits.'],
@@ -348,14 +349,14 @@ function App(){
   <header className="topbar">
    <a className="logo" href="#download" onClick={e=>{e.preventDefault();nav('download')}}><span className="logo-icon"><img src="/favicon.svg" width="39" height="39" alt=""/></span>vyrnivo<span className="logo-dot">.</span></a>
    <nav aria-label="Main navigation" className="tabs">
-    {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='discover'?'Discover':p==='vyron'?'VYRON':'About'}</span></button>)}
+    {pages.map(p=><button key={p} type="button" className={'tab '+(page===p?'active':'')} aria-current={page===p?'page':undefined} onClick={()=>nav(p)}><Icon name={p} size={18}/><span>{p==='download'?'Download':p==='discover'?'Discover':p==='vyron'?'VYRON':p==='pro'?'Pro':'About'}</span></button>)}
    </nav>
   </header>
   <main className="content" id="main-content" data-page={page}>
    <div className="hero" key={page}><AuroraVisual/>
-    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='discover'?'FIND YOUR NEXT FAVORITE':page==='vyron'?'TAKE A PLAY BREAK':'BEYOND THE DOWNLOAD'}</p>
-    <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:page==='vyron'?<>Play <em>VYRON.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
-    <p>{page==='download'?'Paste. Choose. Download.':page==='discover'?'Find videos, Shorts & creators.':page==='vyron'?'Sky Hop and Perfect Stack. Play anytime.':'The essentials about Vyrnivo.'}</p>
+    <p className="kicker">{page==='download'?'YOUR MEDIA, YOUR WAY':page==='discover'?'FIND YOUR NEXT FAVORITE':page==='vyron'?'TAKE A PLAY BREAK':page==='pro'?'BUILT FOR POWER USERS':'BEYOND THE DOWNLOAD'}</p>
+    <h1>{page==='download'?<>Save the <em>moment.</em></>:page==='discover'?<>Explore & <em>discover.</em></>:page==='vyron'?<>Play <em>VYRON.</em></>:page==='pro'?<>Meet <em>Vyrnivo Pro.</em></>:<>About <em>Vyrnivo.</em></>}</h1>
+    <p>{page==='download'?'Paste. Choose. Download.':page==='discover'?'Find videos, Shorts & creators.':page==='vyron'?'Sky Hop and Perfect Stack. Play anytime.':page==='pro'?'A better workflow, without taking away what makes Free great.':'The essentials about Vyrnivo.'}</p>
    </div>
    {page==='download'&&
      <section className="panel surface-interactive" ref={panelRef} aria-label="Video downloader">
@@ -398,6 +399,15 @@ function App(){
     }
 
    {page==='vyron'&&<Vyron processing={true}/>}
+   {page==='pro'&&<section className="pro-page" aria-label="Vyrnivo Pro plan preview">
+    <div className="pro-status"><Icon name="info" size={16}/> PRO IS A CONCEPT PREVIEW · NO PAYMENTS OR SUBSCRIPTIONS ARE ACTIVE</div>
+    <div className="pro-cards">
+     <article className="pro-card"><div className="pro-card-top"><span>FOR EVERYONE</span><h2>Free</h2><p>Everything you need to get started.</p></div><div className="pro-price">₹0 <small>/ forever</small></div><ul><li>Standard supported downloads</li><li>Available video and audio formats</li><li>Discover public media</li><li>Both VYRON games</li><li>No account required</li></ul><button type="button" onClick={()=>nav('download')}>Continue with Free</button></article>
+     <article className="pro-card pro-featured"><div className="pro-card-top"><span>PLANNED UPGRADE</span><h2>Vyrnivo Pro</h2><p>For people who download and organize often.</p></div><div className="pro-price">₹99 <small>/ month · proposed</small></div><p className="pro-yearly">Proposed yearly option: ₹799 / year</p><ul><li>Batch download queue <em>planned</em></li><li>Saved format and quality presets <em>planned</em></li><li>Download history and file organization <em>planned</em></li><li>Higher concurrency when infrastructure supports it <em>planned</em></li><li>Priority support <em>planned</em></li><li>Everything in Free</li></ul><div className="pro-unavailable">Coming later — not available for purchase</div></article>
+    </div>
+    <div className="pro-note"><h3>What Pro won't do</h3><p>It won't guarantee that blocked or restricted videos work, or promise faster downloads before that capability is built and tested. Free users keep both games and the core downloader.</p></div>
+   </section>}
+
    {page==='about'&&<section className="about-intro"><h2>All the extras, neatly organized.</h2><p>Frequently asked questions, policies, and everything else about Vyrnivo.</p><div className="about-notes"><span>Free to use</span><span>10-minute file links</span><span>No account needed</span></div></section>}
    {page==='about'&&<section className="developer-section" id="developer" aria-labelledby="developer-title"><div className="developer-header"><span className="developer-eyebrow">THE PERSON BEHIND THE PROJECT</span><h2 id="developer-title">About the Developer</h2></div><p>Aarnav Fbav12 is the creator and developer behind Vyrnivo. A creative, ambitious builder with a strong interest in web development, interactive design, and digital experiences, he brings ideas to life through thoughtful interfaces and hands-on experimentation.</p><p>From responsive layouts and smooth interactions to practical tools and creative projects, his work reflects curiosity, persistence, and an eye for detail. Vyrnivo is part of his ongoing journey to build useful experiences that feel distinctive, intuitive, and enjoyable to use.</p><p>He also created <a className="developer-project-link" href="https://nexusdeck-two.vercel.app" target="_blank" rel="noopener noreferrer" aria-label="Play Nexus Deck arcade game (opens in new tab)">Nexus Deck <Icon name="external" size={14}/></a>, a small arcade game that showcases his interest in playful, interactive projects.</p><p className="developer-footnote">Independent developer · Creative projects · Always improving.</p></section>}
    {page==='about'&&<section className="faq" id="faq" aria-labelledby="faq-title">
