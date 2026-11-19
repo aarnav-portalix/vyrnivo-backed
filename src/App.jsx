@@ -104,9 +104,9 @@ function App(){
  const [url,setUrl]=useState('');
  const [selectedResult,setSelectedResult]=useState(null);
  const [mode,setMode]=useState(()=>{const stored=saved('vyrnivo-mode','Video + audio');return ['Video + audio','Video only','Audio only'].includes(stored)?stored:'Video + audio'});
- const [quality,setQuality]=useState(()=>saved('vyrnivo-quality','720p'));
+ const [quality,setQuality]=useState(()=>(['720p','1080p'].includes(saved('vyrnivo-quality','720p'))?saved('vyrnivo-quality','720p'):'720p'));
  const [container,setContainer]=useState(()=>saved('vyrnivo-mode','Video + audio')==='Audio only'?'MP3':'MP4');
- const [audioBitrate,setAudioBitrate]=useState('320 kbps');
+ const [audioBitrate,setAudioBitrate]=useState('120 kbps');
  const [more,setMore]=useState(false);
  const [status,setStatus]=useState(null);
  const [humanStatus,setHumanStatus]=useState({enabled:false,siteKey:null});
@@ -249,6 +249,7 @@ function App(){
  const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick&&!freeBackupReady;
  async function startDownload(e,verifiedToken=null){
   e?.preventDefault?.();
+  if(!['720p','1080p'].includes(quality)){setQuality('720p');setFormError('That resolution is planned for Pro. Please choose 720p or 1080p.');return}
   const link=url.trim();
   if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
   if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
@@ -372,9 +373,9 @@ function App(){
        <button type="submit" className="cta" disabled={busy||status?.enabled===false}>{busy?'Starting…':'Download'}<Icon name="arrow" size={19}/></button>
       </div>
       {more&&<div className="advanced" id="download-options">
-       {mode!=='Audio only'&&<label>Maximum resolution<select value={quality} onChange={e=>{setQuality(e.target.value);setJob(null)}}>{['720p','1080p','1440p','2160p · 4K','Best available'].map(x=><option key={x}>{x}</option>)}</select><small className="quality-help">Up to the selected resolution, depending on what the source provides. The actual output is checked when possible.</small></label>}
-       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>{mode==='Audio only'&&<p className="audio-format-help">120 and 320 kbps set the output bitrate. Encoding cannot restore quality missing from the original audio.</p>}
-       {mode==='Audio only'&&['MP3','M4A'].includes(container)&&<label>Audio quality<select aria-label="Audio quality" value={audioBitrate} onChange={e=>{setAudioBitrate(e.target.value);setJob(null)}}><option>320 kbps</option><option>120 kbps</option></select></label>}
+       {mode!=='Audio only'&&<label>Maximum resolution<select value={quality} onChange={e=>{setQuality(e.target.value);setJob(null)}}>{['720p','1080p'].map(x=><option key={x}>{x}</option>)}</select><small className="quality-help">Up to the selected resolution, depending on what the source provides. The actual output is checked when possible. 4K is planned for Pro.</small></label>}
+       <label>File type<select value={container} onChange={e=>{setContainer(e.target.value);setJob(null)}}>{(mode==='Audio only'?['MP3','M4A','WAV','Original audio']:['MP4','WebM','MKV']).map(x=><option key={x}>{x}</option>)}</select></label>{mode==='Audio only'&&<p className="audio-format-help">120 kbps is available in Free; 320 kbps is planned for Pro. Encoding cannot restore quality missing from the original audio.</p>}
+       {mode==='Audio only'&&['MP3','M4A'].includes(container)&&<label>Audio quality<select aria-label="Audio quality" value={audioBitrate} onChange={e=>{setAudioBitrate(e.target.value);setJob(null)}}><option>120 kbps</option></select></label>}
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
@@ -399,13 +400,19 @@ function App(){
     }
 
    {page==='vyron'&&<Vyron processing={true}/>}
+   <section className="support-section" aria-label="Support Vyrnivo">
+    <div className="support-mark" aria-hidden="true">☕</div>
+    <div><span className="support-eyebrow">OPTIONAL SUPPORT</span><h2>Enjoying Vyrnivo?</h2><p>Support the project with a coffee if you want to. Completely optional — downloads and VYRON stay free.</p><p className="support-disclaimer">Donations are not subscriptions and don't unlock Pro. A verified creator payment link will be added here when available.</p></div>
+    <span className="support-coming">Coffee link coming soon</span>
+   </section>
+
    {page==='pro'&&<section className="pro-page" aria-label="Vyrnivo Pro plan preview">
     <div className="pro-status"><Icon name="info" size={16}/> PRO IS A CONCEPT PREVIEW · NO PAYMENTS OR SUBSCRIPTIONS ARE ACTIVE</div>
     <div className="pro-cards">
-     <article className="pro-card"><div className="pro-card-top"><span>FOR EVERYONE</span><h2>Free</h2><p>Everything you need to get started.</p></div><div className="pro-price">₹0 <small>/ forever</small></div><ul><li>Standard supported downloads</li><li>Available video and audio formats</li><li>Discover public media</li><li>Both VYRON games</li><li>No account required</li></ul><button type="button" onClick={()=>nav('download')}>Continue with Free</button></article>
-     <article className="pro-card pro-featured"><div className="pro-card-top"><span>PLANNED UPGRADE</span><h2>Vyrnivo Pro</h2><p>For people who download and organize often.</p></div><div className="pro-price">₹99 <small>/ month · proposed</small></div><p className="pro-yearly">Proposed yearly option: ₹799 / year</p><ul><li>Batch download queue <em>planned</em></li><li>Saved format and quality presets <em>planned</em></li><li>Download history and file organization <em>planned</em></li><li>Higher concurrency when infrastructure supports it <em>planned</em></li><li>Priority support <em>planned</em></li><li>Everything in Free</li></ul><div className="pro-unavailable">Coming later — not available for purchase</div></article>
+     <article className="pro-card"><div className="pro-card-top"><span>FOR EVERYONE</span><h2>Free</h2><p>Everything you need to get started.</p></div><div className="pro-price">₹0 <small>/ forever</small></div><ul><li>Up to 1080p in the website's Free selector</li><li>120 kbps MP3/M4A audio encoding</li><li>Discover public media</li><li>Both VYRON games</li><li>No account required</li></ul><button type="button" onClick={()=>nav('download')}>Continue with Free</button></article>
+     <article className="pro-card pro-featured"><div className="pro-card-top"><span>PLANNED UPGRADE</span><h2>Vyrnivo Pro</h2><p>For people who download and organize often.</p></div><div className="pro-price">₹99 <small>/ month · proposed</small></div><p className="pro-yearly">Proposed yearly option: ₹799 / year</p><ul><li>4K video downloads (source permitting) <em>planned</em></li><li>320 kbps audio encoding (source permitting) <em>planned</em></li><li>Faster processing on dedicated infrastructure <em>planned</em></li><li>Batch queues and saved presets <em>planned</em></li><li>Priority support <em>planned</em></li><li>Everything in Free</li></ul><div className="pro-unavailable">Coming later — not available for purchase</div></article>
     </div>
-    <div className="pro-note"><h3>What Pro won't do</h3><p>It won't guarantee that blocked or restricted videos work, or promise faster downloads before that capability is built and tested. Free users keep both games and the core downloader.</p></div>
+    <div className="pro-note"><h3>What Pro won't do</h3><p>4K, 320 kbps and faster processing require paid infrastructure and subscription enforcement that are not built yet. They are not currently available as Pro features. Source quality and access restrictions still apply. Free users keep both games and the core downloader.</p></div>
    </section>}
 
    {page==='about'&&<section className="about-intro"><h2>All the extras, neatly organized.</h2><p>Frequently asked questions, policies, and everything else about Vyrnivo.</p><div className="about-notes"><span>Free to use</span><span>10-minute file links</span><span>No account needed</span></div></section>}
