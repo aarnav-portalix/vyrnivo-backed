@@ -6,6 +6,7 @@ import HumanCheck from './HumanCheck.jsx';
 import Vyron from './Vyron.jsx';
 
 const icons={
+ vyron:<><path d="M7 9h10a4 4 0 0 1 3.9 3.1l1.1 4.7a2 2 0 0 1-3.1 2.1L15.5 16h-7l-3.4 2.9A2 2 0 0 1 2 16.8l1.1-4.7A4 4 0 0 1 7 9Z"/><path d="M7 12v4m-2-2h4m7-1h.01M19 15h.01"/></>,
  download:<><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></>,
  youtube:<><rect x="3" y="5" width="18" height="14" rx="5"/><path d="m10 9 5 3-5 3Z"/></>,
  instagram:<><rect x="3" y="3" width="18" height="18" rx="6"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></>,
