@@ -55,15 +55,21 @@ function nativeDiscoverUrl(platform,kind,query){
  return url.href;
 }
 const discoverTypes={youtube:[['all','All'],['videos','Videos'],['shorts','Shorts'],['channels','Channels'],['playlists','Playlists']],instagram:[['reels','Reels'],['creators','Creators']]};
-function friendlyError(message,source){
+function friendlyError(message,source,code=''){
  const m=String(message||'');
- if(/429|rate.limit|blocking this render server|too many requests/i.test(m))return 'The source is rate-limiting this server. Try again later or use another public link.';
- if(/403|sign.in|login|blocked|not allow/i.test(m))return 'This video could not be accessed. Try another public link.';
- if(/processing|busy/i.test(m))return 'Another video is being prepared. Try again shortly.';
- if(/format|quality|retriev|backup|provider|source/i.test(m))return 'This video could not be prepared in that quality. Try another quality, such as 720p or Best available.';
+ const reason=String(code||'');
+ if(reason==='FREE_PROVIDER_MEDIA_UNAVAILABLE')return 'The backup could not access this media. Changing audio bitrate will not fix a blocked source; try another public link later.';
+ if(reason==='SOURCE_RATE_LIMITED'||reason==='FREE_PROVIDER_RATE_LIMITED')return 'The source is rate-limiting downloads right now. Wait before retrying; changing quality will not bypass the limit.';
+ if(reason==='SOURCE_ACCESS_DENIED'||reason==='SOURCE_VERIFICATION_REQUIRED')return 'This source requires access that Vyrnivo does not have. Try a different public link.';
+ if(reason==='FREE_PROVIDER_TIMEOUT')return 'The backup service did not respond in time. Please retry later.';
+ if(reason==='FREE_PROVIDER_FORMAT_UNSUPPORTED'||reason==='MEDIA_FORMAT_UNAVAILABLE')return 'That format is not available for this media. Choose a supported format.';
+ if(reason==='SERVER_BUSY')return 'Another download is being prepared. Try again shortly.';
+ if(/429|rate.limit|too many requests/i.test(m))return 'The source is rate-limiting this server. Try again later.';
+ if(/403|sign.in|login|access.denied/i.test(m))return 'This source could not be accessed. Try another public link.';
+ if(/processing|busy/i.test(m))return 'Another download is being prepared. Try again shortly.';
  if(/expired/i.test(m))return 'This download link has expired. Start again.';
- if(m.length>150)return 'Could not prepare this video. Try a different link.';
- return m||('Could not download this '+source+' video.');
+ if(m.length>180)return 'Could not prepare this '+source+' media. Try another public link.';
+ return m||('Could not download this '+source+' media.');
 }
 function AuroraVisual(){return <div className="motion-hero" aria-hidden="true">
  <div className="motion-grid"/>
@@ -250,10 +256,10 @@ function App(){
   try{
    const r=await fetch('/api/downloads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:link,mode,quality:mode==='Audio only'?'Best available':quality,container:mode==='Audio only'&&!['MP3','M4A','WAV','Original audio'].includes(container)?'MP3':mode!=='Audio only'&&!['MP4','WebM','MKV'].includes(container)?'MP4':container,...(mode==='Audio only'?{audioBitrate:['WAV','Original audio'].includes(container)?'Source':audioBitrate}:{}),...(selectedResult?.url===link?{suggestedTitle:selectedResult.title}:{}),...(humanStatus.enabled?{turnstileToken:verifiedToken}:{})})});
    const data=await r.json();
-   if(!r.ok)throw Error(data.error||'Could not start download.');
+   if(!r.ok){const err=Error(data.error||'Could not start download.');err.code=data.code;throw err;}
    setJob(data);
    if(data.state==='ready')showToast('Your file is ready.','success')
-  }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram'));refreshStatus()}
+  }catch(e){setFormError(friendlyError(e.message,isYouTube(link)?'YouTube':'Instagram',e.code));refreshStatus()}
   finally{setBusy(false)}
  }
  async function copyLink(){
@@ -331,7 +337,7 @@ function App(){
        <p className="processing-note">{Number.isFinite(remainingEstimate)?'Based on the latest transfer report. Final processing can add time.':'Time remaining appears when measurable progress is available. Elapsed time is accurate.'}</p>
       </div>}
       {job?.state==='ready'&&<div className="download-result ready" role="status"><div className="ready-heading"><Icon name="check" size={21}/><div><strong>{job.sourceMetadata?.alternateVersion?'Licensed excerpt ready':'Ready to save'}</strong><p>{(job.bytes/1048576).toFixed(1)} MB · Expires in {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</p></div></div>{mode!=='Audio only'&&<p className="quality-delivered">{job.actualQuality?'Actual video resolution: '+job.actualQuality:'Actual video resolution could not be verified.'}</p>}{mode==='Audio only'&&job.downloadUrl&&<div className="ready-audio-preview"><span>Listen before saving</span><audio controls preload="none" src={job.downloadUrl} aria-label="Preview completed audio"/></div>}{job.downloadName&&<div className="file-label" title={job.downloadName}><Icon name="download" size={14}/><span>{job.downloadName}</span></div>}<div className="ready-actions"><a href={job.downloadUrl} className="cta" download={job.downloadName||true}>Save file <Icon name="download" size={18}/></a><button type="button" onClick={copyLink} className="outline-btn"><Icon name="copy" size={17}/> Copy link</button></div>{job.sourceMetadata?.alternateVersion&&<div className="converter-license" role="note"><strong>{job.sourceMetadata.videoTitle} — not the full YouTube upload</strong><span>{job.sourceMetadata.attribution} · <a href={job.sourceMetadata.sourcePage} target="_blank" rel="noopener noreferrer">Source</a> · <a href={job.sourceMetadata.licenseUrl} target="_blank" rel="noopener noreferrer">{job.sourceMetadata.license}</a> · Converted by Vyrnivo</span></div>}</div>}
-     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram')} {mode!=='Audio only'&&isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&!/rate.limit|access.denied|verification|required|unavailable through the backup|source may restrict|timed out/i.test(String(job.error||''))&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
+     {job?.state==='failed'&&<div className="message error" role="alert"><span>{friendlyError(job.error,isYouTube(url)?'YouTube':'Instagram',job.failureCode)} {mode!=='Audio only'&&isYouTube(url)&&quality==='2160p · 4K'?'4K may not be available for this video.':''}</span>{mode!=='Audio only'&&['MEDIA_FORMAT_UNAVAILABLE','FREE_PROVIDER_FORMAT_UNSUPPORTED'].includes(job.failureCode)&&<button type="button" onClick={()=>{setQuality('720p');setMore(true);setJob(null);setFormError('Quality changed to 720p. Try Download again.')}}>Try 720p</button>}{isYouTube(url)&&<a href={url} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
      {job?.state==='expired'&&<div className="message warning">Link expired. Submit the video again.</div>}
 
  </>;
@@ -369,7 +375,7 @@ function App(){
       </div>}
      </form>
      {formError&&<div className="message error" role="alert"><span>{formError}</span>{original&&<a href={original} target="_blank" rel="noopener noreferrer">Watch on YouTube <Icon name="external" size={14}/></a>}</div>}
-     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">Some videos may be temporarily unavailable. Try another quality or video if needed.</div>}
+     {youtubeUnavailable&&!formError&&<div className="message warning" role="status">This source is temporarily restricted. Changing quality may not help; try again later.</div>}
      {status?.enabled===false&&<div className="message warning" role="alert">Downloader is offline. <button type="button" onClick={refreshStatus}>Retry</button></div>}
      <div className="live-dashboard" aria-label="Live downloader status">
       <div className="live-overview">
