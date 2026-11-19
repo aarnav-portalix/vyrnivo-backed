@@ -72,3 +72,38 @@ test('one missing YouTube video never places all other videos in provider cooldo
   );
  }finally{await rm(dir,{recursive:true,force:true})}
 });
+
+test('a stalled backup stream fails with a timeout and removes the partial file',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'vyrnivo-stall-'));
+ try{
+  const stream=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(256))},cancel(){}});
+  await assert.rejects(
+   downloadViaFreeProvider(input,dir,{
+    fetchImpl:async()=>new Response(stream,{headers:{'content-type':'video/mp4'}}),
+    transferIdleMs:30,transferMaxMs:1000
+   }),
+   error=>error.code==='FREE_PROVIDER_TIMEOUT'
+  );
+  await assert.rejects(readFile(join(dir,'media.mp4')),{code:'ENOENT'});
+ }finally{await rm(dir,{recursive:true,force:true})}
+});
+
+test('healthy streamed chunks can continue beyond the idle deadline without being aborted',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'vyrnivo-streaming-'));
+ try{
+  const stream=new ReadableStream({
+   start(controller){
+    let sent=0;
+    const timer=setInterval(()=>{
+     controller.enqueue(new Uint8Array(128));sent++;
+     if(sent===5){clearInterval(timer);controller.close()}
+    },15);
+   }
+  });
+  const result=await downloadViaFreeProvider(input,dir,{
+   fetchImpl:async()=>new Response(stream,{headers:{'content-type':'video/mp4'}}),
+   transferIdleMs:40,transferMaxMs:1000
+  });
+  assert.equal(result.bytes,640);
+ }finally{await rm(dir,{recursive:true,force:true})}
+});
