@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: https://vyrnivo-downloads.onrender.com/sitemap.xml
