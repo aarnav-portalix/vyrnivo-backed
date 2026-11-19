@@ -75,19 +75,34 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
   throw new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0);
  let bytes=0;
  const reportTransfer=createTransferReporter({onProgress,totalBytes:lengthHeader!==null?length:null,stage:'Receiving media'});
+ // A healthy transfer should not be killed merely because it lasts two minutes.
+ // Stop stalled streams after 25 seconds without bytes, with a hard four-minute cap.
+ const transferController=new AbortController();
+ let transferTimedOut=false;
+ let idleTimer;
+ const idleAbort=()=>{transferTimedOut=true;transferController.abort()};
+ const resetIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleAbort,25000);idleTimer.unref?.()};
+ const absoluteTimer=setTimeout(idleAbort,240000);
+ absoluteTimer.unref?.();
  const limiter=new Transform({transform(chunk,encoding,callback){
   bytes+=chunk.length;
+  resetIdle();
   reportTransfer(chunk.length);
   if(bytes>MAX_BYTES)callback(new FreeProviderError('This media file exceeds the free 200 MB limit.','FREE_PROVIDER_TOO_LARGE',0));
   else callback(null,chunk);
  }});
  try{
-  await pipeline(Readable.fromWeb(response.body),limiter,createWriteStream(destination,{mode:0o600}),{signal:AbortSignal.timeout(120000)});
-  if(bytes<128)throw new FreeProviderError('The free backup returned an empty media file.','FREE_PROVIDER_INVALID_MEDIA',120000);
+  resetIdle();
+  await pipeline(Readable.fromWeb(response.body),limiter,createWriteStream(destination,{mode:0o600}),{signal:transferController.signal});
+  if(bytes<128)throw new FreeProviderError('The free backup returned an empty media file.','FREE_PROVIDER_INVALID_MEDIA',0);
  }catch(error){
   await rm(destination,{force:true});
   if(error instanceof FreeProviderError)throw error;
+  if(transferTimedOut)throw new FreeProviderError('The backup transfer stalled or exceeded four minutes.','FREE_PROVIDER_TIMEOUT',0);
   throw new FreeProviderError('The backup transfer was interrupted. Try again later.','FREE_PROVIDER_UNAVAILABLE',0);
+ }finally{
+  clearTimeout(idleTimer);
+  clearTimeout(absoluteTimer);
  }
  return {path:destination,name:'media.'+extension,bytes,sourceTitle:titleFromContentDisposition(response.headers.get('content-disposition'))||safeMediaTitle(response.headers.get('x-video-title'))||null,provider:'WebDownloader (free public API)'};
 }
