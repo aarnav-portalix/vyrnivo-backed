@@ -437,7 +437,7 @@ function App(){
       <a href={nativeDiscoverUrl(searchSource,searchKind,query)} target="_blank" rel="noopener noreferrer">Search on {isInstagram?'Instagram':'YouTube'} <Icon name="external" size={14}/></a>
      </div>
      {searchError&&<div className="message error" role="alert">{searchError}</div>}
-     {!!searchNote&&searched&&results.length>0&&<p className="search-source-note" role="status">{searchNote}</p>}
+     {!!searchNote&&searched&&!searching&&<p className="search-source-note" role="status">{searchNote}</p>}
      {searching&&<div className="search-loading" role="status"><span className="loading-spinner"/> Searching…</div>}
      {!searching&&searched&&<div className="result-heading"><span>{results.length?results.length+' source matches for “'+searched+'”':'Results for “'+searched+'”'}</span>{results.length>0&&<button type="button" onClick={()=>{setResults([]);setSearched('');setQuery('')}}>Clear</button>}</div>}
      {!searching&&searched&&!results.length&&!searchError&&<div className="empty-results"><Icon name="search" size={24}/><strong>No public matches for “{searched}”</strong><p>{isInstagram?'Public indexes did not return matching Instagram results. This does not mean no Reels or creators exist.':'No matching public results were returned.'}</p><a className="outline-btn" href={nativeDiscoverUrl(searchSource,searchKind,searched)} target="_blank" rel="noopener noreferrer">Search on {isInstagram?'Instagram':'YouTube'} <Icon name="external" size={15}/></a></div>}
