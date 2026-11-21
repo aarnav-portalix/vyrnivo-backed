@@ -13,7 +13,7 @@ const env=process.env;
 const humanCheck=createHumanVerification({
  siteKey:env.TURNSTILE_SITE_KEY||'',
  secretKey:env.TURNSTILE_SECRET_KEY||'',
- expectedHostname:env.TURNSTILE_EXPECTED_HOSTNAME||'vyrnivo-downloads.onrender.com'
+ expectedHostname:env.TURNSTILE_EXPECTED_HOSTNAME||'vyrnivo.net,www.vyrnivo.net,vyrnivo-downloads.onrender.com'
 });
 if(humanCheck.incomplete)console.warn('Turnstile setup incomplete; challenge stays disabled until both keys exist.');
 const ownedEngineConfig=validateOwnedEngineConfig(env.OWN_DOWNLOADER_URL||'',env.OWN_DOWNLOADER_TOKEN||'');
