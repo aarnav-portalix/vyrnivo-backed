@@ -249,7 +249,7 @@ function App(){
  const youtubeUnavailable=isYouTube(url)&&Number(status?.youtubeRetryAt)>tick&&!freeBackupReady;
  async function startDownload(e,verifiedToken=null){
   e?.preventDefault?.();
-  if(!['720p','1080p'].includes(quality)){setQuality('720p');setFormError('That resolution is planned for Pro. Please choose 720p or 1080p.');return}
+  if(mode!=='Audio only'&&!['720p','1080p'].includes(quality)){setQuality('720p');setFormError('That resolution is planned for Pro. Please choose 720p or 1080p.');return}
   const link=url.trim();
   if(!/^https:\/\//i.test(link)){setFormError('Paste a YouTube or Instagram video link.');inputRef.current?.focus();return}
   if(status?.enabled===false){setFormError('Downloader is offline. Try again shortly.');return}
