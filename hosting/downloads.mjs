@@ -44,7 +44,7 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  else format='bestvideo'+filter+'+bestaudio/best'+filter;
  const a=['-m','yt_dlp','--ignore-config','--no-playlist','--newline','--progress-template','download:%(progress._percent_str)s|%(progress._eta_str)s|%(progress.speed)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s','--print','after_move:VYRNIVO_MEDIA_TITLE:%(title)s','--socket-timeout','8','--extractor-retries','1','--retries','1','--fragment-retries','1','--concurrent-fragments','6','--max-filesize','200M','--match-filter','duration <=? 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
  if(x.mode==='Audio only'){a.push('-x');if(x.container!=='Original audio')a.push('--audio-format',x.container.toLowerCase(),'--audio-quality',x.audioBitrate==='Source'?'0':x.audioBitrate.split(' ')[0]+'K')}
- else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
+ else a.push('--merge-output-format',x.container.toLowerCase(),'--recode-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
 export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null,convertAudio=convertBackupAudio,lookupTitle=async()=>null,probeQuality=probeVideoHeight}={}){
@@ -107,7 +107,16 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
    j.stage='Checking source';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
   }
  }
- if(useBackupFirst){await backup();return}let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500);
+ if(useBackupFirst){
+  try{await backup();return}
+  catch(error){
+   console.warn('backup_first_failed',JSON.stringify({code:error?.code||'UNKNOWN'}));
+   if(error?.code==='FREE_PROVIDER_RATE_LIMITED'&&error.retryAfterMs>0)backupRetryAt=now()+error.retryAfterMs;
+   await rm(j.dir,{recursive:true,force:true});
+   await mkdir(j.dir,{recursive:true,mode:0o700});
+   j.stage='Checking original source';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  }
+ }let stdout='',stderr='';await new Promise((resolve,reject)=>{const proc=spawnProcess(python,argumentsFor(input,j.dir),{stdio:['ignore','pipe','pipe']});proc.stdout?.on('data',d=>{stdout=(stdout+d).slice(-3500);
  const progress=parseExtractorTelemetry(stdout);
  if(progress.percent!==null){j.stage='Downloading media';j.progressSource='reported-extractor';j.progressUpdatedAt=now();j.estimatedSecondsRemaining=progress.etaSeconds;j.progressPercent=Math.round(progress.percent*10)/10;j.speedBytesPerSecond=progress.speedBytesPerSecond;j.transferredBytes=progress.transferredBytes;j.totalBytes=progress.totalBytes}});proc.stderr.on('data',d=>{stderr=(stderr+d).slice(-4000);if(/(?:HTTP Error|status(?: code)?)\s*:?\s*429\b|\b429 Too Many Requests\b|Too Many Requests/i.test(stderr))proc.kill('SIGTERM')});const timeout=setTimeout(()=>proc.kill('SIGKILL'),180000);const disk=setInterval(async()=>{try{let bytes=0;for(const f of await readdir(j.dir))bytes+=(await stat(join(j.dir,f))).size;if(bytes>400*1024*1024)proc.kill('SIGKILL')}catch{}},1000);const clear=()=>{clearTimeout(timeout);clearInterval(disk)};proc.on('error',e=>{clear();reject(e)});proc.on('close',code=>{clear();if(code===0)resolve();else {
  const failure=classifyExtractorFailure(stderr,{source:youtubeInput?'youtube':'instagram'});
@@ -118,7 +127,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }})});
  j.stage='Finalizing media';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;const seenFiles=await readdir(j.dir);const names=seenFiles.filter(n=>/^media\.[a-z0-9]+$/i.test(n)&&!n.endsWith('.part'));if(names.length!==1){console.warn('extractor_no_output',JSON.stringify({origin:new URL(input.url).hostname,files:seenFiles.map(n=>n.replace(/[^a-zA-Z0-9_.-]/g,'_').slice(0,60)).slice(0,12),stdout:stdout.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-1200),stderr:stderr.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-800)}));throw Error(/does not pass filter|duration|not available/i.test(stdout)?'The source video was skipped by media metadata filters.':'The extractor returned no downloadable media. This Reel may be inaccessible from the server.');}j.path=join(j.dir,names[0]);j.bytes=(await stat(j.path)).size;if(!j.bytes||j.bytes>200*1024*1024)throw Error('This file exceeds the 200 MB server limit.');j.name=names[0];await verifyActualQuality();await applyDownloadName(titleFromExtractorLog(stdout));j.expiresAt=now()+600000;j.state='ready';j.progressPercent=100;j.stage='Ready';successful.set(j.requestKey,j.id);if(onReady&&j.bytes<=50*1024*1024){try{j.hosted=await onReady(j.path,j.name)}catch{j.hosted={notice:'External hosting failed; direct download remains available.'}}}
  }catch(e){
-  if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_RATE_LIMITED','SOURCE_ACCESS_DENIED','SOURCE_VERIFICATION_REQUIRED','SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
+  if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
    try{await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});await backup();return}
    catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,code:fallbackError?.code||'UNKNOWN'}));e=fallbackError}
   }
