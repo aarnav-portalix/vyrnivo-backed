@@ -22,6 +22,10 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchSear
  if(query.length<2||query.length>200)return Response.json({error:'Enter a topic or public Reel URL (2–200 characters).'},{status:400});
  const searchUrl=nativeInstagramSearchUrl(query);
  const direct=canonical({url:query,title:'Instagram Reel',creator:'Public Reel',source:'Exact link entered'});
+ // A single Instagram handle is an account lookup, not a Reel topic.
+ if(/^@[A-Za-z0-9._]{1,30}$/.test(query))return searchCreators(
+  new Request(url.origin+url.pathname+'?q='+encodeURIComponent(query)+'&kind=creators'),{base,now}
+ );
  if(direct)return Response.json({items:[{...direct,matchType:'direct-link'}],kind:'reels',query,searchUrl,
   notice:'This is the exact Reel link you entered. Its availability is controlled by Instagram.'});
  const key=String(base||'')+'|'+query.toLocaleLowerCase();
