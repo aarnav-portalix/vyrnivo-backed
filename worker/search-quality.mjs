@@ -22,7 +22,7 @@ export function matchEvidence(item,query){
  const fraction=count/terms.length;
  const exact=clean(query);
  const phrase=primary.includes(exact)&&exact.length>=3;
- const accepted=(phrase||count>=Math.ceil(terms.length*.65))&&count>0;
+ const accepted=(phrase||count>=Math.ceil(terms.length*.65)||terms.length<=2&&count>=1)&&count>0;
  return {score:mainMatched.length*3+additional.length+(phrase?5:0),matches:count,
   fraction,accepted};
 }
