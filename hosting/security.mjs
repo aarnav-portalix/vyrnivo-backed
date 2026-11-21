@@ -11,6 +11,7 @@ export function createHumanVerification({
  fetchImpl=fetch
 }={}){
  const enabled=Boolean(siteKey&&secretKey);
+ const acceptedHostnames=new Set(String(expectedHostname).split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
  const incomplete=Boolean(siteKey)!==Boolean(secretKey);
  const publicStatus=()=>({enabled,siteKey:enabled?siteKey:null});
  async function verify(token){
@@ -28,7 +29,7 @@ export function createHumanVerification({
    });
    if(!response.ok)throw Error('Verification service returned an error.');
    const result=await response.json();
-   if(result?.success===true&&result?.hostname===expectedHostname&&result?.action==='download')
+   if(result?.success===true&&acceptedHostnames.has(String(result?.hostname||'').toLowerCase())&&result?.action==='download')
     return {ok:true};
   }catch{
    return {ok:false,status:503,code:'BOT_CHECK_UNAVAILABLE',error:'Human verification is temporarily unavailable. Please try again shortly.'};
