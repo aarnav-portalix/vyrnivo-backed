@@ -1,3 +1,4 @@
+import {officialInstagramSearch} from './ig-official.mjs';
 import {indexedInstagram} from './ig-index.mjs';
 import {searx} from './searx.mjs';
 import {searchInstagramCreators} from './ig-creators.mjs';
@@ -13,7 +14,7 @@ const canonical=item=>{
  }catch{return null}
 };
 
-export async function findReels(request,{searchIndex=indexedInstagram,searchSearx=searx,searchCreators=searchInstagramCreators,base,now=Date.now}={}){
+export async function findReels(request,{searchIndex=indexedInstagram,searchSearx=searx,searchCreators=searchInstagramCreators,base,now=Date.now,instagramAccountId,instagramAccessToken}={}){
  const url=new URL(request.url);
  const kind=url.searchParams.get('kind')||'reels';
  if(!['reels','creators'].includes(kind))return Response.json({error:'Unsupported Instagram search type.'},{status:400});
@@ -21,6 +22,8 @@ export async function findReels(request,{searchIndex=indexedInstagram,searchSear
  const query=url.searchParams.get('q')?.trim()||'';
  if(query.length<2||query.length>200)return Response.json({error:'Enter a topic or public Reel URL (2–200 characters).'},{status:400});
  const searchUrl=nativeInstagramSearchUrl(query);
+ const official=await officialInstagramSearch(request,{accountId:instagramAccountId,token:instagramAccessToken});
+ if(official)return official;
  const direct=canonical({url:query,title:'Instagram Reel',creator:'Public Reel',source:'Exact link entered'});
  // A single Instagram handle is an account lookup, not a Reel topic.
  if(/^@[A-Za-z0-9._]{1,30}$/.test(query))return searchCreators(
