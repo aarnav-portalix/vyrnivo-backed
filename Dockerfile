@@ -19,6 +19,8 @@ RUN python3 -m venv /opt/downloader && /opt/downloader/bin/pip install --no-cach
 ENV PYTHON=/opt/downloader/bin/python
 COPY --from=build /app/dist ./dist
 COPY hosting ./hosting
+COPY tests ./tests
+RUN node --test tests/vxe-instagram.test.mjs
 RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 10000
