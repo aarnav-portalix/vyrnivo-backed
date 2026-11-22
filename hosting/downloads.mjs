@@ -122,14 +122,18 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  const failure=classifyExtractorFailure(stderr,{source:youtubeInput?'youtube':'instagram'});
  if(youtubeInput&&failure.code==='SOURCE_RATE_LIMITED')youtubeRetryAt=now()+1800000;
  j.failureCode=failure.code;j.canRetryWithDifferentFormat=failure.code==='MEDIA_FORMAT_UNAVAILABLE';
- console.error('extractor_failure',code,JSON.stringify({source:youtubeInput?'youtube':'instagram',reason:failure.code}));
+ console.error('extractor_failure',code,JSON.stringify({source:youtubeInput?'youtube':'instagram',reason:failure.code,mode:input.mode,container:input.container,quality:input.quality}));
  reject(Error(failure.message))
  }})});
  j.stage='Finalizing media';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;const seenFiles=await readdir(j.dir);const names=seenFiles.filter(n=>/^media\.[a-z0-9]+$/i.test(n)&&!n.endsWith('.part'));if(names.length!==1){console.warn('extractor_no_output',JSON.stringify({origin:new URL(input.url).hostname,files:seenFiles.map(n=>n.replace(/[^a-zA-Z0-9_.-]/g,'_').slice(0,60)).slice(0,12),stdout:stdout.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-1200),stderr:stderr.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-800)}));throw Error(/does not pass filter|duration|not available/i.test(stdout)?'The source video was skipped by media metadata filters.':'The extractor returned no downloadable media. This Reel may be inaccessible from the server.');}j.path=join(j.dir,names[0]);j.bytes=(await stat(j.path)).size;if(!j.bytes||j.bytes>200*1024*1024)throw Error('This file exceeds the 200 MB server limit.');j.name=names[0];await verifyActualQuality();await applyDownloadName(titleFromExtractorLog(stdout));j.expiresAt=now()+600000;j.state='ready';j.progressPercent=100;j.stage='Ready';successful.set(j.requestKey,j.id);if(onReady&&j.bytes<=50*1024*1024){try{j.hosted=await onReady(j.path,j.name)}catch{j.hosted={notice:'External hosting failed; direct download remains available.'}}}
  }catch(e){
   if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
    try{await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});await backup();return}
-   catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,code:fallbackError?.code||'UNKNOWN'}));e=fallbackError}
+   catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,primaryCode:j.failureCode||'UNKNOWN',backupCode:fallbackError?.code||'UNKNOWN'}));
+    // Preserve the actual extractor failure; a failed backup must not mask it.
+    // The primary failure remains actionable (format/network), while the backup
+    // failure is retained in logs for diagnostics.
+   }
   }
   if(e?.code?.startsWith('FREE_PROVIDER_')){
    j.failureCode=e.code;
