@@ -1,4 +1,5 @@
 import {spawn} from 'node:child_process';
+import {downloadPublicInstagram} from './vxe-instagram.mjs';
 import {mkdir,rm,readdir,stat,open} from 'node:fs/promises';
 import {createReadStream} from 'node:fs';
 import {join} from 'node:path';
@@ -105,6 +106,19 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
    await rm(j.dir,{recursive:true,force:true});
    await mkdir(j.dir,{recursive:true,mode:0o700});
    j.stage='Checking source';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;
+  }
+ }
+ if(!youtubeInput&&input.mode==='Video + audio'&&input.container==='MP4'){
+  try{
+   j.stage='Checking public Instagram media';
+   const result=await downloadPublicInstagram(input,j.dir,{fetchImpl});
+   Object.assign(j,result);
+   await verifyActualQuality();await applyDownloadName(result.sourceTitle);
+   Object.assign(j,{state:'ready',stage:'Ready',progressPercent:100,expiresAt:now()+600000,failureCode:null,error:null});
+   successful.set(j.requestKey,j.id);return;
+  }catch(error){
+   console.info('vxe_public_instagram_unavailable',JSON.stringify({reason:error?.message||'unknown'}));
+   await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});
   }
  }
  if(useBackupFirst){
