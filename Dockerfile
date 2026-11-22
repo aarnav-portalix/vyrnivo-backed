@@ -13,7 +13,9 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=10000
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ffmpeg && rm -rf /var/lib/apt/lists/*
-RUN python3 -m venv /opt/downloader && /opt/downloader/bin/pip install --no-cache-dir "yt-dlp[default]"
+RUN python3 -m venv /opt/downloader && /opt/downloader/bin/pip install --no-cache-dir "yt-dlp[default]" \
+ && /opt/downloader/bin/python -c "import yt_dlp, yt_dlp_ejs; print('yt-dlp and EJS installed')" \
+ && node --version && ffmpeg -version
 ENV PYTHON=/opt/downloader/bin/python
 COPY --from=build /app/dist ./dist
 COPY hosting ./hosting
