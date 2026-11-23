@@ -8,8 +8,8 @@ test('bounded fragment parallelism is enabled for compatible media',()=>{
  const args=argumentsFor(base,'/tmp/vyrnivo-test');
  const at=args.indexOf('--concurrent-fragments');
  assert.equal(args[at+1],'6');
- assert.equal(args[args.indexOf('--fragment-retries')+1],'1');
- assert.equal(args[args.indexOf('--extractor-retries')+1],'1');
+ assert.equal(args[args.indexOf('--fragment-retries')+1],'2');
+ assert.equal(args[args.indexOf('--extractor-retries')+1],'2');
 });
 test('audio-only formats retain their conversion flags',()=>{
  const args=argumentsFor({...base,mode:'Audio only',container:'MP3',audioBitrate:'320 kbps'},'/tmp/vyrnivo-test');
