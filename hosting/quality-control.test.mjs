@@ -58,10 +58,10 @@ test('video height probe reads actual stream height, not requested output label'
 });
 
 test('yt-dlp progress accepts measured ETA and keeps unknown initial stages unestimated',()=>{
- assert.deepEqual(parseExtractorTelemetry('download: 43.7%|01:12\n'),{percent:43.7,etaSeconds:72});
- assert.deepEqual(parseExtractorTelemetry('download: 78.0%|00:10\n'),{percent:78,etaSeconds:10});
- assert.deepEqual(parseExtractorTelemetry('preparing source'),{percent:null,etaSeconds:null});
- assert.deepEqual(parseExtractorTelemetry('download: 1.2%|N/A'),{percent:1.2,etaSeconds:null});
+ assert.deepEqual(parseExtractorTelemetry('download: 43.7%|01:12\n'),{percent:43.7,etaSeconds:72,speedBytesPerSecond:null,transferredBytes:null,totalBytes:null});
+ assert.deepEqual(parseExtractorTelemetry('download: 78.0%|00:10\n'),{percent:78,etaSeconds:10,speedBytesPerSecond:null,transferredBytes:null,totalBytes:null});
+ assert.deepEqual(parseExtractorTelemetry('preparing source'),{percent:null,etaSeconds:null,speedBytesPerSecond:null,transferredBytes:null,totalBytes:null});
+ assert.deepEqual(parseExtractorTelemetry('download: 1.2%|N/A'),{percent:1.2,etaSeconds:null,speedBytesPerSecond:null,transferredBytes:null,totalBytes:null});
 });
 
 test('quality mismatch is rejected rather than falsely claimed as requested resolution',async()=>{

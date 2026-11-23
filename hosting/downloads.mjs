@@ -40,12 +40,12 @@ export function argumentsFor(input,dir){const x=validate(input);const filter=x.h
  let format;
  if(x.mode==='Audio only')format='bestaudio/best';
  else if(x.mode==='Video only')format=ext==='mkv'?'bestvideo'+filter:video(ext)+'/bestvideo'+filter;
- else if(ext==='mp4'){const combined='best[ext=mp4]'+filter;const separate=video('mp4')+'+'+audio('m4a');const isInstagram=new URL(x.url).hostname.replace(/^www\./,'')==='instagram.com';format=isInstagram?'best[height<=?'+(x.height||2160)+']/bestvideo[height<=?'+(x.height||2160)+']+bestaudio/best':separate+'/'+combined+'/bestvideo'+filter+'+bestaudio/best'+filter}
+ else if(ext==='mp4'){const combined='best[ext=mp4]'+filter;const separate=video('mp4')+'+'+audio('m4a');const isInstagram=new URL(x.url).hostname.replace(/^www\./,'')==='instagram.com';format=isInstagram?'best[height<=?'+(x.height||2160)+']/bestvideo*[height<=?'+(x.height||2160)+']+bestaudio/best':separate+'/'+combined+'/bestvideo'+filter+'+bestaudio/best'+filter}
  else if(ext==='webm')format=video('webm')+'+'+audio('webm')+'/best[ext=webm]'+filter+'/bestvideo'+filter+'+bestaudio/best'+filter;
  else format='bestvideo'+filter+'+bestaudio/best'+filter;
- const a=['-m','yt_dlp','--ignore-config','--no-playlist','--newline','--progress-template','download:%(progress._percent_str)s|%(progress._eta_str)s|%(progress.speed)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s','--print','after_move:VYRNIVO_MEDIA_TITLE:%(title)s','--socket-timeout','8','--extractor-retries','1','--retries','1','--fragment-retries','1','--concurrent-fragments','6','--max-filesize','200M','--match-filter','duration <=? 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
+ const a=['-m','yt_dlp','--ignore-config','--no-playlist','--newline','--progress-template','download:%(progress._percent_str)s|%(progress._eta_str)s|%(progress.speed)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s','--print','after_move:VYRNIVO_MEDIA_TITLE:%(title)s','--socket-timeout','8','--extractor-retries','2','--retries','2','--fragment-retries','2','--concurrent-fragments','6','--max-filesize','200M','--match-filter','duration <=? 1800','--js-runtimes','node','-f',format,'-o',join(dir,'media.%(ext)s')];
  if(x.mode==='Audio only'){a.push('-x');if(x.container!=='Original audio')a.push('--audio-format',x.container.toLowerCase(),'--audio-quality',x.audioBitrate==='Source'?'0':x.audioBitrate.split(' ')[0]+'K')}
- else a.push('--merge-output-format',x.container.toLowerCase(),'--recode-video',x.container.toLowerCase());
+ else a.push('--merge-output-format',x.container.toLowerCase(),'--remux-video',x.container.toLowerCase());
  a.push('--',x.url);return a;
 }
 export async function createDownloads({enabled=false,python='python3',onReady,spawnProcess=spawn,now=Date.now,fetchImpl=fetch,freeFallbackEnabled=false,verifyToken=async()=>({ok:true}),ownedEngineConfig=null,convertAudio=convertBackupAudio,lookupTitle=async()=>null,probeQuality=probeVideoHeight}={}){
@@ -69,8 +69,8 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   const height=await probeQuality(j.path);
   if(Number.isInteger(height)&&height>0){
    j.actualQuality=height+'p';
-   if(input.height&&height>input.height+20){
-    throw Error('The requested quality was not delivered. Try another video quality or Best available.');
+   if(input.height&&Math.abs(height-input.height)>20){
+    j.canRetryWithDifferentFormat=true;throw Error('The requested quality was not delivered. Try another video quality or Best available.');
    }
   }
  };
@@ -141,7 +141,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
  }})});
  j.stage='Finalizing media';j.progressPercent=null;j.estimatedSecondsRemaining=null;j.progressSource=null;const seenFiles=await readdir(j.dir);const names=seenFiles.filter(n=>/^media\.[a-z0-9]+$/i.test(n)&&!n.endsWith('.part'));if(names.length!==1){console.warn('extractor_no_output',JSON.stringify({origin:new URL(input.url).hostname,files:seenFiles.map(n=>n.replace(/[^a-zA-Z0-9_.-]/g,'_').slice(0,60)).slice(0,12),stdout:stdout.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-1200),stderr:stderr.replace(/https?:\/\/[^\s]+/g,'[url]').slice(-800)}));throw Error(/does not pass filter|duration|not available/i.test(stdout)?'The source video was skipped by media metadata filters.':'The extractor returned no downloadable media. This Reel may be inaccessible from the server.');}j.path=join(j.dir,names[0]);j.bytes=(await stat(j.path)).size;if(!j.bytes||j.bytes>200*1024*1024)throw Error('This file exceeds the 200 MB server limit.');j.name=names[0];await verifyActualQuality();await applyDownloadName(titleFromExtractorLog(stdout));j.expiresAt=now()+600000;j.state='ready';j.progressPercent=100;j.stage='Ready';successful.set(j.requestKey,j.id);if(onReady&&j.bytes<=50*1024*1024){try{j.hosted=await onReady(j.path,j.name)}catch{j.hosted={notice:'External hosting failed; direct download remains available.'}}}
  }catch(e){
-  if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE'].includes(j.failureCode)){
+  if(youtubeInput&&!useBackupFirst&&canTryFallback(input)&&['SOURCE_NETWORK_ERROR','MEDIA_FORMAT_UNAVAILABLE','SOURCE_RATE_LIMITED','SOURCE_ACCESS_DENIED','SOURCE_VERIFICATION_REQUIRED'].includes(j.failureCode)){
    try{await rm(j.dir,{recursive:true,force:true});await mkdir(j.dir,{recursive:true,mode:0o700});await backup();return}
    catch(fallbackError){console.warn('backup_failure',JSON.stringify({source:'youtube',mode:input.mode,primaryCode:j.failureCode||'UNKNOWN',backupCode:fallbackError?.code||'UNKNOWN'}));
     // Preserve the actual extractor failure; a failed backup must not mask it.
@@ -172,7 +172,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   j.error=e?.code?.startsWith('FREE_PROVIDER_')?
    (e.code==='FREE_PROVIDER_RATE_LIMITED'?'The backup service is rate-limited right now. Please try again later.':e.code==='FREE_PROVIDER_MEDIA_UNAVAILABLE'?'This audio or video is unavailable through the backup service. The source may restrict downloads.':e.code==='FREE_PROVIDER_FORMAT_UNSUPPORTED'?'The backup does not support this file format. Choose another audio format.':e.code==='FREE_PROVIDER_TOO_LARGE'?'This media exceeds the 200 MB limit.':e.code==='FREE_PROVIDER_BUSY'?'The backup is still preparing the file. Please try again shortly.':e.code==='FREE_PROVIDER_TIMEOUT'?'The backup server did not respond in time. Please try another public link later.':'The backup download failed or was interrupted. Please try again later.'):
    e?.message||'Could not prepare this media. Please try again later.';
-  j.canRetryWithDifferentFormat=['MEDIA_FORMAT_UNAVAILABLE','FREE_PROVIDER_FORMAT_UNSUPPORTED'].includes(j.failureCode);
+  j.canRetryWithDifferentFormat=Boolean(j.canRetryWithDifferentFormat)||['MEDIA_FORMAT_UNAVAILABLE','FREE_PROVIDER_FORMAT_UNSUPPORTED'].includes(j.failureCode);
   try{await rm(j.dir,{recursive:true,force:true})}catch(cleanupError){console.warn('failed_job_cleanup',cleanupError.code||'UNKNOWN')}
  }finally{if(inProgress.get(j.requestKey)===j.id)inProgress.delete(j.requestKey);active=false}}
  const cleanup=async()=>{for(const [url,failure]of recentSourceFailures){if(failure.until<=now())recentSourceFailures.delete(url)}for(const [id,j]of jobs){if(j.state==='ready'&&now()>=j.expiresAt){j.state='expired';if(successful.get(j.requestKey)===id)successful.delete(j.requestKey);try{await rm(j.dir,{recursive:true,force:true})}catch(error){console.warn('expired_job_cleanup_failed',error.code||'UNKNOWN')}}if(['failed','expired'].includes(j.state)&&now()-j.createdAt>3600000)jobs.delete(id)}};

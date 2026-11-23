@@ -42,7 +42,7 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  // Fail fast if the provider cannot begin a response. A responding transfer gets its own deadline.
  const responseController=new AbortController();
  const responseTimer=setTimeout(()=>responseController.abort(),35000);
- responseTimer.unref?.();
+ // Keep timeout referenced while awaiting the provider; otherwise a stalled request can leave a pending promise with no active event-loop handles.
  try{
   response=await fetchImpl(API,{
    method:'POST',headers:{'content-type':'application/json',accept:'video/*, audio/*, application/octet-stream'},
@@ -81,9 +81,9 @@ export async function downloadViaFreeProvider(input,dir,{fetchImpl=fetch,onProgr
  let transferTimedOut=false;
  let idleTimer;
  const idleAbort=()=>{transferTimedOut=true;transferController.abort()};
- const resetIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleAbort,transferIdleMs);idleTimer.unref?.()};
+ const resetIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleAbort,transferIdleMs);};
  const absoluteTimer=setTimeout(idleAbort,transferMaxMs);
- absoluteTimer.unref?.();
+ // Keep the transfer deadline referenced until pipeline settles.
  const limiter=new Transform({transform(chunk,encoding,callback){
   bytes+=chunk.length;
   resetIdle();

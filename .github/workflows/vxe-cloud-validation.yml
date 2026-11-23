@@ -1,0 +1,46 @@
+name: VXE cloud validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'hosting/**'
+      - 'tests/**'
+      - '.github/workflows/vxe-cloud-validation.yml'
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install extractor and conversion tools
+        run: |
+          python -m pip install 'yt-dlp[default]' imageio-ffmpeg
+          echo "$(python -c 'import imageio_ffmpeg,os; print(os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe()))')" >> "$GITHUB_PATH"
+          python -m yt_dlp --version
+      - name: Verify bundled FFmpeg
+        run: |
+          python -c 'import imageio_ffmpeg, subprocess; subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-version"], check=True)'
+      - name: Run all repository Node tests
+        run: node --test tests/*.test.mjs
+      - name: Verify conversion of generated audio
+        run: |
+          python - <<'PY'
+          import imageio_ffmpeg, subprocess, os
+          ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+          subprocess.run([ffmpeg, '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-y', '/tmp/vxe-source.wav'], check=True)
+          subprocess.run([ffmpeg, '-hide_banner', '-loglevel', 'error', '-i', '/tmp/vxe-source.wav', '-y', '/tmp/vxe-result.mp3'], check=True)
+          assert os.path.getsize('/tmp/vxe-result.mp3') > 1000
+          print('WAV to MP3 conversion OK')
+          PY
+      - name: Check extractor imports
+        run: |
+          node -e "import('./hosting/downloads.mjs').then(()=>console.log('Download module imports OK'))"
+          node -e "import('./hosting/vxe-instagram.mjs').then(()=>console.log('Instagram module imports OK'))"
