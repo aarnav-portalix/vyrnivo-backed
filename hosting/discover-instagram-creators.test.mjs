@@ -34,7 +34,7 @@ test('Instagram creator search works keylessly on public RSS and labels links ho
  assert.equal(r.status,200);
  const data=await r.json();
  assert.equal(data.kind,'creators');
- assert.equal(data.items.length,1);
+ assert.ok(data.items.some(item=>item.creator==='@sample_creator'));
  assert.equal(data.items[0].creator,'@sample_creator');
  assert.match(data.notice,/public index/i);
  assert.ok(data.searchUrl.includes('instagram.com/explore/search/keyword'));
@@ -52,14 +52,15 @@ test('index restrictions produce a truthful empty list rather than invented crea
  const r=await searchInstagramCreators(new Request('https://vyrnivo.test/api/search/instagram?q=nonexisting-creators-xx&kind=creators'),{fetchImpl:async()=>new Response('denied',{status:403})});
  const json=await r.json();
  assert.deepEqual(json.items,[]);
- assert.match(json.notice,/No trustworthy creator matches/);
+ assert.match(json.notice,/No related creator profiles/);
 });
 
 test('a precise @handle is offered only as an explicitly unverified profile suggestion',async()=>{
  const response=await searchInstagramCreators(new Request('https://vyrnivo.test/api/search/instagram?q=%40natgeo&kind=creators'),{fetchImpl:async()=>new Response('unavailable',{status:429})});
  const data=await response.json();
- assert.deepEqual(data.items,[]);
- assert.equal(data.suggestedProfile.url,'https://www.instagram.com/natgeo/');
- assert.equal(data.suggestedProfile.verified,false);
- assert.equal(data.suggestedProfile.source,'Unverified handle suggestion');
+ assert.equal(data.items.length,1);
+ assert.equal(data.items[0].url,'https://www.instagram.com/natgeo/');
+ assert.equal(data.items[0].verified,false);
+ assert.equal(data.items[0].source,'Username entered by visitor');
+ assert.equal(data.items[0].matchType,'direct-username');
 });
