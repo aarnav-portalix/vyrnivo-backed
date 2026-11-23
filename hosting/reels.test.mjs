@@ -23,7 +23,7 @@ test('blocked sources give explicit notice, not fake results',async()=>{
  });
  const x=await r.json();
  assert.deepEqual(x.items,[]);
- assert.match(x.notice,/No trustworthy matching Reels/i);
+ assert.match(x.notice,/Public search providers could not be reached/i);
 });
 test('query validation runs before external calls',async()=>{
  const r=await findReels(new Request('https://app.test/api/search/instagram?q=a'),{searchIndex:()=>{throw Error('must not run')}});
