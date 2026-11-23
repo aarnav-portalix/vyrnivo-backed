@@ -69,7 +69,7 @@ export async function createDownloads({enabled=false,python='python3',onReady,sp
   const height=await probeQuality(j.path);
   if(Number.isInteger(height)&&height>0){
    j.actualQuality=height+'p';
-   if(input.height&&height>input.height+20){
+   if(input.height&&Math.abs(height-input.height)>20){
     throw Error('The requested quality was not delivered. Try another video quality or Best available.');
    }
   }
