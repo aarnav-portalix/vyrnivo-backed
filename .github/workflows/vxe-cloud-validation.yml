@@ -1,0 +1,39 @@
+name: VXE cloud validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'hosting/**'
+      - 'tests/**'
+      - '.github/workflows/vxe-cloud-validation.yml'
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install extractor and conversion tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'yt-dlp[default]'
+          ffmpeg -version
+          python -m yt_dlp --version
+      - name: Run all repository Node tests
+        run: node --test tests/*.test.mjs
+      - name: Verify conversion of generated audio
+        run: |
+          ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 -y /tmp/vxe-source.wav
+          ffmpeg -hide_banner -loglevel error -i /tmp/vxe-source.wav -y /tmp/vxe-result.mp3
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 /tmp/vxe-result.mp3
+      - name: Check extractor imports
+        run: |
+          node -e "import('./hosting/downloads.mjs').then(()=>console.log('Download module imports OK'))"
+          node -e "import('./hosting/vxe-instagram.mjs').then(()=>console.log('Instagram module imports OK'))"
