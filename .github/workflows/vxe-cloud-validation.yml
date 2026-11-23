@@ -22,19 +22,24 @@ jobs:
           python-version: '3.12'
       - name: Install extractor and conversion tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install --upgrade pip
-          python -m pip install 'yt-dlp[default]'
-          ffmpeg -version
+          python -m pip install 'yt-dlp[default]' imageio-ffmpeg
+          echo "$(python -c 'import imageio_ffmpeg,os; print(os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe()))')" >> "$GITHUB_PATH"
           python -m yt_dlp --version
+      - name: Verify bundled FFmpeg
+        run: |
+          python -c 'import imageio_ffmpeg, subprocess; subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-version"], check=True)'
       - name: Run all repository Node tests
         run: node --test tests/*.test.mjs
       - name: Verify conversion of generated audio
         run: |
-          ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 -y /tmp/vxe-source.wav
-          ffmpeg -hide_banner -loglevel error -i /tmp/vxe-source.wav -y /tmp/vxe-result.mp3
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 /tmp/vxe-result.mp3
+          python - <<'PY'
+          import imageio_ffmpeg, subprocess, os
+          ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+          subprocess.run([ffmpeg, '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-y', '/tmp/vxe-source.wav'], check=True)
+          subprocess.run([ffmpeg, '-hide_banner', '-loglevel', 'error', '-i', '/tmp/vxe-source.wav', '-y', '/tmp/vxe-result.mp3'], check=True)
+          assert os.path.getsize('/tmp/vxe-result.mp3') > 1000
+          print('WAV to MP3 conversion OK')
+          PY
       - name: Check extractor imports
         run: |
           node -e "import('./hosting/downloads.mjs').then(()=>console.log('Download module imports OK'))"
