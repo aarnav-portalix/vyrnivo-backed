@@ -130,6 +130,8 @@ function App(){
  const [searchNote,setSearchNote]=useState('');
  const [preview,setPreview]=useState(null);
  const [toast,setToast]=useState(null);
+ const [successNotice,setSuccessNotice]=useState(null);
+ const lastNotifiedReady=useRef(null);
  const [tick,setTick]=useState(Date.now());
  const notifyTimer=useRef(null);
  const searchAbort=useRef(null);
@@ -219,6 +221,7 @@ function App(){
   poll();const interval=setInterval(poll,2400);
   return()=>{alive=false;clearInterval(interval)}
  },[job?.id,job?.state,job?.engine]);
+ useEffect(()=>{if(job?.state==='ready'&&job.id&&job.id!==lastNotifiedReady.current){lastNotifiedReady.current=job.id;setSuccessNotice({name:job.downloadName||'Your media file',url:job.downloadUrl});}},[job?.id,job?.state,job?.downloadName,job?.downloadUrl]);
  useEffect(()=>{if(job?.state==='ready'&&job.expiresAt<=tick)setJob(p=>p?.state==='ready'?{...p,state:'expired',downloadUrl:null}:p)},[tick,job?.state,job?.expiresAt]);
  const nav=next=>{if(!pages.includes(next))return;if(next!==page){searchAbort.current?.abort();setSearching(false)}setPage(next);location.hash=next;window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})};
  const openLegal=section=>{if(!legalSections.includes(section))return;setLegalSection(section);setPage('about');location.hash=section;requestAnimationFrame(()=>document.getElementById('legal-center')?.scrollIntoView({block:'start',behavior:'smooth'}))};
@@ -400,11 +403,7 @@ function App(){
     }
 
    {page==='vyron'&&<Vyron processing={true}/>}
-   <section className="support-section" aria-label="Support Vyrnivo">
-    <div className="support-mark" aria-hidden="true">☕</div>
-    <div><span className="support-eyebrow">OPTIONAL SUPPORT</span><h2>Enjoying Vyrnivo?</h2><p>Support the project with a coffee if you want to. Completely optional — downloads and VYRON stay free.</p><p className="support-disclaimer">Donations are not subscriptions and don't unlock Pro. A verified creator payment link will be added here when available.</p></div>
-    <span className="support-coming">Coffee link coming soon</span>
-   </section>
+
 
    {page==='pro'&&<section className="pro-page" aria-label="Vyrnivo Pro plan preview">
     <div className="pro-status"><Icon name="info" size={16}/> PRO IS A CONCEPT PREVIEW · NO PAYMENTS OR SUBSCRIPTIONS ARE ACTIVE</div>
@@ -450,7 +449,7 @@ function App(){
     </section>
     </section>}
   </main>
-  <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav Fbav12</span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
+  <footer className="footer"><span className="footer-brand">vyrnivo</span><span className="footer-credit">Built by Aarnav Fbav12 <span aria-label="Buy Me a Coffee link coming soon" title="Optional support link coming soon" style={{fontSize:".78em",opacity:.72,marginLeft:8}}>· ☕ Buy me a coffee (soon)</span></span><nav className="footer-links" aria-label="Policies"><a href="#privacy" onClick={e=>{e.preventDefault();openLegal('privacy')}}>Privacy</a><a href="#terms" onClick={e=>{e.preventDefault();openLegal('terms')}}>Terms</a><a href="#copyright" onClick={e=>{e.preventDefault();openLegal('copyright')}}>Copyright</a><a href="#disclaimer" onClick={e=>{e.preventDefault();openLegal('disclaimer')}}>Notice</a></nav><span className="footer-note">Only save content you have permission to download.</span></footer>
   {humanCheckOpen&&humanStatus.enabled&&<HumanCheck siteKey={humanStatus.siteKey} onVerified={token=>startDownload(null,token)} onClose={()=>setHumanCheckOpen(false)}/>}
   {preview&&<Preview item={preview} onClose={()=>setPreview(null)}/>}
   {toast&&<div className={"toast toast-"+toast.type} role={toast.type==="warning"?"alert":"status"}><Icon name={toast.type==="success"?"check":toast.type==="warning"?"warning":"info"} size={18}/><span>{toast.message}</span></div>}
