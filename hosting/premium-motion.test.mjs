@@ -8,7 +8,7 @@ test('premium motion is compositor-only and has device guards',()=>{
  assert.match(premium,/@media \(max-width:640px\)/);
  assert.match(premium,/@media \(prefers-reduced-motion:reduce\)/);
  assert.match(premium,/@media \(hover:hover\) and \(pointer:fine\)/);
- assert.doesNotMatch(premium,/\b(?:width|height|top|left|margin|padding)\s*:/);
+ assert.doesNotMatch(premium,/[;{]\s*(?:width|height|top|left|margin|padding)\s*:/);
  assert.match(premium,/pointer-events:none/);
 });
 test('animation changes do not replace download or search interaction code',()=>{
